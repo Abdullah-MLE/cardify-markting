@@ -1,0 +1,11 @@
+streamlit>=1.33.0
+supabase
+google-genai
+python-dotenv
+pydantic
+pillow
+requests
+tenacity
+httpx
+pandas
+jinja2
