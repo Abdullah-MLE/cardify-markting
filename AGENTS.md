@@ -1,5 +1,5 @@
 AGENTS.md — Global Agent Rules for CampaignGenius / Tansiq AI
-This file is read by every AI agent (LLM call) in the system. It defines the shared rules. Per-task rules live in skills/<skill_name>/skill.md.
+This file is read by every AI agent (LLM call) in the system. It defines the shared rules.
 
 Project Overview
 CampaignGenius (also called Tansiq AI) is a social-media content management system that uses AI to generate posts, stories, carousels, templates, and weekly content plans for companies.
@@ -12,17 +12,7 @@ Database: Supabase (PostgreSQL) — companies, weekly_plans, content, templates 
 
 AI Model: Google Gemini via the google-genai SDK
 
-Prompt System: Skills-based architecture — every prompt lives in skills/<skill_name>/ as Markdown + Jinja2, never as Python strings
-
-Skill File Format
-Each skill in skills/<skill_name>/ contains:
-
-File	Purpose
-skill.md	System prompt — Role, Task, Rules, Output. Read first.
-user_context.md	User prompt template — Jinja2 placeholders like {{ company.company_name }}. Rendered with the call's context.
-schema.json	JSON output schema — for text-generation skills only. The Gemini call uses this to force structured output.
-examples.md	Few-shot examples — appended to the user prompt to improve quality.
-Skills live in ONE directory, in ONE repo. Don't duplicate.
+Prompt System: Python-based architecture — every prompt lives in `services/prompts/` as Python strings/functions.
 
 The 10 Skills
 Skill	Type	Output
@@ -36,6 +26,7 @@ generate_carousel	Text	JSON CarouselGeneration
 generate_image	Image	PNG/JPEG bytes
 edit_image	Image (inpaint)	PNG/JPEG bytes
 generate_template	Image	PNG/JPEG bytes (blank canvas)
+
 Code Standards
 
 Python 3.10+
@@ -44,7 +35,7 @@ Type hints on every function signature
 
 Pydantic models for all structured AI responses
 
-All prompts are loaded via services/prompt_loader.py — never hardcoded in Python
+All prompts are loaded via `services.prompts` — hardcoded in Python functions.
 
 Logging via app/core/logging.py
 
@@ -71,15 +62,11 @@ Schema strictness — if a schema requires minItems: 1, the model must produce a
 Do / Don't
 DO
 
-✅ Read the skill's skill.md before every call — it contains the rules
+✅ Read the appropriate prompt file in `services/prompts/` before every call — it contains the rules
 
 ✅ Pass the full company context (name, industry, brand_tone, target_audience, language_and_locale, brand_color, visual_style, visual_constraints, constraints, is_character, main_character_name, main_character_constraints) to every call
 
 ✅ Use the Gemini retry logic in GeminiWrapper for all API calls
-
-✅ Render the user prompt with Jinja2 from user_context.md and pass real data — never leave {{ }} placeholders unfilled
-
-✅ Append examples.md content to the user prompt before sending (it improves quality significantly)
 
 ✅ Set response_mime_type = "application/json" and response_schema = <Pydantic class> for text skills
 
@@ -88,12 +75,6 @@ DO
 ✅ Handle errors in the UI with clear messages
 
 DON'T
-
-❌ Don't hardcode prompts in Python files
-
-❌ Don't duplicate prompts across files — the skills/ directory is the single source of truth
-
-❌ Don't put the company's language_and_locale text in post_idea (always English)
 
 ❌ Don't return text when the schema expects JSON
 
@@ -111,42 +92,13 @@ project/
 
 ├── AGENTS.md                          ← you are here
 
-├── skills/
-
-│   ├── analyze_company/
-
-│   │   ├── skill.md
-
-│   │   ├── user_context.md
-
-│   │   ├── schema.json
-
-│   │   └── examples.md
-
-│   ├── analyze_template/
-
-│   ├── create_weekly_plan/
-
-│   ├── generate_day_content/
-
-│   ├── generate_post/
-
-│   ├── generate_story/
-
-│   ├── generate_carousel/
-
-│   ├── generate_image/
-
-│   ├── edit_image/
-
-│   └── generate_template/
-
-```
 ├── services/
 
-│   ├── ai_service.py                  ← high-level: takes a skill_name + context
+│   ├── prompts/                       ← contains all the python-based prompts
+│   │   ├── single_post_prompts.py
+│   │   ├── ...
 
-│   ├── prompt_loader.py               ← loads skill.md, user_context.md, examples.md
+│   ├── ai_service.py                  ← high-level: takes a skill_name + context and maps to prompts
 
 │   └── ... (other services)
 

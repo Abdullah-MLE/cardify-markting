@@ -1,9 +1,5 @@
 """
-High-level AI service. Connects skills (Markdown) to the GeminiWrapper.
-
-The calling code never touches prompts directly — it says:
-    ai_service.execute_text_skill("generate_post", context={...}, response_schema=SinglePostGeneration)
-and the loader does the rest.
+High-level AI service. Connects old Python prompt system to the GeminiWrapper.
 """
 
 import logging
@@ -11,21 +7,15 @@ from typing import Any, Dict, List, Optional
 
 from libs.GeminiWrapper.GeminiWrapper import GeminiWrapper
 from libs.GeminiWrapper.models import InputParams, TextParams, ImageParams
-from services.prompt_loader import PromptLoader
+import services.prompts as prompts
 
 logger = logging.getLogger("AIService")
 
-
 class AIService:
-    """High-level orchestrator that connects skills to the GeminiWrapper."""
+    """High-level orchestrator that connects python prompts to the GeminiWrapper."""
 
     def __init__(self, wrapper: Optional[GeminiWrapper] = None) -> None:
         self.wrapper = wrapper or GeminiWrapper()
-        self.loader = PromptLoader()
-
-    # ------------------------------------------------------------------
-    # Text skills (output: JSON matching a Pydantic model)
-    # ------------------------------------------------------------------
 
     def execute_text_skill(
         self,
@@ -34,25 +24,66 @@ class AIService:
         response_schema: Any = None,
         media: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
-        """Execute a text-generation skill and return the Gemini result dict.
-
-        Parameters
-        ----------
-        skill_name:
-            Directory name under `skills/`.
-        context:
-            Variables for the user_context.md Jinja2 template.
-        response_schema:
-            Pydantic model class to use as the response schema (forces JSON).
-        media:
-            Optional list of media URLs to include in the prompt (for image
-            inputs in multimodal skills like `analyze_template`).
-        """
-        skill = self.loader.load_skill(skill_name, context)
+        
+        system_prompt = ""
+        user_prompt = ""
+        
+        if skill_name == "generate_post":
+            system_prompt = prompts.single_post_system_prompt()
+            user_prompt = prompts.single_post_user_prompt(
+                context.get("headline", ""),
+                context.get("notes", ""),
+                context.get("company", {})
+            )
+        elif skill_name == "generate_story":
+            system_prompt = prompts.single_post_system_prompt()
+            user_prompt = prompts.single_post_user_prompt(
+                context.get("headline", ""),
+                context.get("notes", ""),
+                context.get("company", {})
+            )
+        elif skill_name == "generate_carousel":
+            system_prompt = prompts.carousel_gen_system_prompt()
+            user_prompt = prompts.carousel_gen_user_prompt(
+                context.get("headline", ""),
+                context.get("notes", "")
+            )
+        elif skill_name == "generate_day_content":
+            system_prompt = prompts.day_content_system_prompt()
+            user_prompt = prompts.day_content_user_prompt(
+                context.get("weekly_plan", {}),
+                context.get("company", {}),
+                context.get("date", ""),
+                context.get("day_name", ""),
+                context.get("day_order", ""),
+                context.get("notes", "")
+            )
+        elif skill_name == "analyze_company":
+            system_prompt = prompts.extract_company_system_prompt()
+            user_prompt = prompts.extract_company_user_prompt(
+                context.get("source_text", "")
+            )
+        elif skill_name == "create_weekly_plan":
+            system_prompt = prompts.create_weekly_plan_system_prompt()
+            user_prompt = prompts.create_weekly_plan_user_prompt(
+                context.get("company", {}),
+                context.get("campaign", {}),
+                context.get("start_date", ""),
+                context.get("notes", "")
+            )
+        elif skill_name == "analyze_template":
+            system_prompt = prompts.template_analysis_system_prompt()
+            user_prompt = prompts.template_analysis_user_prompt(
+                context.get("company", {})
+            )
+        else:
+            logger.warning(f"Unknown text skill: {skill_name}")
+            system_prompt = "You are a helpful assistant."
+            user_prompt = str(context)
 
         input_params = InputParams(
-            prompt=skill["user_prompt"],
-            system_instruction=skill["system_prompt"],
+            prompt=user_prompt,
+            system_instruction=system_prompt,
             media=media,
         )
 
@@ -73,10 +104,6 @@ class AIService:
 
         return result
 
-    # ------------------------------------------------------------------
-    # Image skills (output: image bytes)
-    # ------------------------------------------------------------------
-
     def execute_image_skill(
         self,
         skill_name: str,
@@ -84,12 +111,44 @@ class AIService:
         media: Optional[List[str]] = None,
         aspect_ratio: str = "1:1",
     ) -> Dict[str, Any]:
-        """Execute an image-generation skill and return the Gemini result dict."""
-        skill = self.loader.load_skill(skill_name, context)
+        
+        system_prompt = ""
+        user_prompt = ""
+        
+        if skill_name == "generate_image":
+            system_prompt = prompts.image_gen_system_prompt()
+            user_prompt = prompts.image_gen_user_prompt(
+                context.get("prompt", ""),
+                context.get("headline", ""),
+                context.get("post_idea", ""),
+                context.get("template_constraints", "")
+            )
+        elif skill_name == "edit_image":
+            system_prompt = prompts.image_edit_system_prompt()
+            user_prompt = prompts.image_edit_user_prompt(
+                context.get("post_idea", ""),
+                context.get("notes", "")
+            )
+        elif skill_name == "generate_template":
+            if "notes" in context:
+                system_prompt = prompts.template_edit_system_prompt()
+                user_prompt = prompts.template_edit_user_prompt(
+                    context.get("notes", "")
+                )
+            else:
+                system_prompt = prompts.template_creation_from_prompt_system_prompt()
+                user_prompt = prompts.template_creation_from_prompt_user_prompt(
+                    context.get("user_request", ""),
+                    context.get("company", {})
+                )
+        else:
+            logger.warning(f"Unknown image skill: {skill_name}")
+            system_prompt = "You are a graphic designer."
+            user_prompt = str(context)
 
         input_params = InputParams(
-            prompt=skill["user_prompt"],
-            system_instruction=skill["system_prompt"],
+            prompt=user_prompt,
+            system_instruction=system_prompt,
             media=media,
         )
         image_params = ImageParams(output_image_aspect_ratio=aspect_ratio)
