@@ -1,6 +1,6 @@
 import streamlit as st
 from services import db_services
-from services.ai_service import get_ai_service
+from services.workflows import content_workflows
 
 @st.dialog("Generate Image")
 def generate_image_dialog(item, company_id):
@@ -11,7 +11,7 @@ def generate_image_dialog(item, company_id):
         st.warning("No templates found for this company. Please create one first.")
         return
         
-    template_options = {t['id']: t.get('name', 'Unnamed') for t in templates}
+    template_options = {t['id']: t.get('template_info', 'Unnamed') for t in templates}
     selected_template_id = st.selectbox("Select Template", options=list(template_options.keys()), format_func=lambda x: template_options[x])
     
     post_idea = item.get('post_idea', '')
@@ -19,48 +19,15 @@ def generate_image_dialog(item, company_id):
     
     if st.button("Generate & Save Image", type="primary"):
         with st.spinner("Generating image..."):
-            ai = get_ai_service()
-            
-            # Fetch template details
             selected_template = next((t for t in templates if t['id'] == selected_template_id), None)
-            template_constraints = selected_template.get('template_constraints', '') if selected_template else ''
-            template_url = selected_template.get('template_url') if selected_template else None
             
-            context = {
-                "prompt": post_idea,
-                "headline": ", ".join(item.get('h1', [])) if item.get('h1') else "",
-                "post_idea": post_idea,
-                "template_constraints": template_constraints
-            }
-            media = [template_url] if template_url else None
+            res = content_workflows.generate_and_attach_image(item, company_id, selected_template)
             
-            # Determine aspect ratio from template or default
-            aspect_ratio = selected_template.get('aspect_ratio', '1:1') if selected_template else '1:1'
-            
-            result = ai.execute_image_skill(
-                "generate_image",
-                context=context,
-                media=media,
-                aspect_ratio=aspect_ratio
-            )
-            
-            if result.get("success"):
-                with st.spinner("Uploading to storage..."):
-                    img_bytes = result["content"]
-                    img_url = db_services.upload_image(img_bytes)
-                    if img_url:
-                        # Update the content item in the DB
-                        update_data = {"post_images": [img_url]}
-                        if db_services.update_content(item['id'], update_data):
-                            st.success("Image generated and saved successfully!")
-                            st.rerun()
-                        else:
-                            st.error("Failed to update database with new image.")
-                    else:
-                        st.error("Failed to upload image to storage.")
+            if res.get("success"):
+                st.success("Image generated and saved successfully!")
+                st.rerun()
             else:
-                st.error(f"Image generation failed: {result.get('error')}")
-
+                st.error(res.get("error"))
 
 def render_item_card(item, campaigns=None):
     with st.container(border=True):
@@ -87,6 +54,7 @@ def render_item_card(item, campaigns=None):
             'scheduled': '🔵',
             'draft': '⚪',
             'failed': '🔴',
+            'planned': '🟠'
         }
         status_icon = status_colors.get(status, '⚪')
         st.write(f"{status_icon} Status: **{status.capitalize()}**")

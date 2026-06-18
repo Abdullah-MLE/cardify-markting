@@ -2,7 +2,7 @@ import streamlit as st
 
 # MUST be the first Streamlit command
 st.set_page_config(
-    page_title="CampaignGenius",
+    page_title="Cardify Marketing",
     page_icon=":material/campaign:",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -34,7 +34,7 @@ def main():
         return
 
     # If logged in, set up the sidebar and navigation
-    st.sidebar.title("CampaignGenius")
+    st.sidebar.title("Cardify Marketing")
     
     user = st.session_state['user']
     role = user.get('role', 'company_user')

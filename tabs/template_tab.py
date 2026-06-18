@@ -1,7 +1,6 @@
 import streamlit as st
 from services import db_services
-from services.ai_service import get_ai_service
-
+from services.workflows import template_workflows
 
 @st.dialog("Edit Template")
 def edit_template_dialog(tpl):
@@ -25,13 +24,12 @@ def edit_template_dialog(tpl):
             "aspect_ratio": aspect_ratio,
             "template_constraints": constraints
         }
-        res = db_services.update_template(tpl['id'], update_data)
-        if res is not None:
+        res = template_workflows.update_template_details(tpl['id'], update_data)
+        if res.get("success"):
             st.success("Template updated successfully!")
             st.rerun()
         else:
-            st.error("Failed to update template.")
-
+            st.error(res.get("error"))
 
 def render():
     st.title("Templates")
@@ -95,7 +93,6 @@ def render():
                         st.success("Deleted successfully!")
                         st.rerun()
 
-
 def _render_create_template(company_id):
     """Render the template creation section with AI/Manual paths."""
 
@@ -131,7 +128,6 @@ def _render_create_template(company_id):
     elif st.session_state.template_create_mode == 'ai':
         _render_ai_template(company_id)
 
-
 def _render_manual_template(company_id):
     """Manual template creation: upload image and fill details."""
     st.markdown("**Manual Template Creation**")
@@ -149,28 +145,16 @@ def _render_manual_template(company_id):
             st.error("Please provide template info/name.")
             return
 
-        tpl_url = None
-        if uploaded:
-            with st.spinner("Uploading template image..."):
-                tpl_url = db_services.upload_image(uploaded.getvalue(), folder="templates")
-                if not tpl_url:
-                    st.error("Failed to upload template image.")
-                    return
-
-        data = {
-            "company_id": company_id,
-            "template_info": info,
-            "aspect_ratio": aspect_ratio,
-            "template_constraints": constraints,
-            "template_url": tpl_url
-        }
-        if db_services.create_template(data):
-            st.success("Template created successfully!")
-            st.session_state.template_create_mode = None
-            st.rerun()
-        else:
-            st.error("Failed to create template.")
-
+        with st.spinner("Saving manual template..."):
+            img_bytes = uploaded.getvalue() if uploaded else None
+            res = template_workflows.save_manual_template(company_id, info, aspect_ratio, constraints, img_bytes)
+            
+            if res.get("success"):
+                st.success("Template created successfully!")
+                st.session_state.template_create_mode = None
+                st.rerun()
+            else:
+                st.error(res.get("error"))
 
 def _render_ai_template(company_id):
     """AI template creation: prompt, optional ref image, name, ratio, generate, and modify."""
@@ -203,32 +187,13 @@ def _render_ai_template(company_id):
             st.error("Please enter a template name.")
         else:
             with st.spinner("Generating template with AI..."):
-                ai = get_ai_service()
-
-                # Get company data for context
-                company = db_services.get_company_data(company_id)
-                context = {
-                    "user_request": ai_prompt,
-                    "company": company or {},
-                }
-
-                result = ai.execute_image_skill(
-                    "generate_template",
-                    context=context,
-                    aspect_ratio=ai_ratio,
-                )
-
-                if result.get("success"):
-                    st.session_state.template_ai_result = {
-                        "bytes": result["content"],
-                        "name": ai_name,
-                        "ratio": ai_ratio,
-                        "constraints": ai_constraints,
-                        "prompt": ai_prompt
-                    }
+                res = template_workflows.generate_ai_template(ai_prompt, ai_name, ai_ratio, company_id)
+                if res.get("success"):
+                    st.session_state.template_ai_result = res["data"]
+                    st.session_state.template_ai_result["constraints"] = ai_constraints
                     st.rerun()
                 else:
-                    st.error(f"Template generation failed: {result.get('error', 'Unknown error')}")
+                    st.error(res.get("error"))
 
     # Show generated result
     if st.session_state.template_ai_result:
@@ -264,50 +229,26 @@ def _render_ai_template(company_id):
         if st.button("Modify", icon=":material/auto_fix_high:", key="modify_tpl_btn"):
             if mod_prompt:
                 with st.spinner("Modifying template with AI..."):
-                    ai = get_ai_service()
-                    context = {
-                        "notes": mod_prompt,
-                        "post_idea": result.get('prompt', ''),
-                    }
-                    # Pass the current template image bytes as media
-                    # Note: edit_image skill expects an image URL, but we have bytes
-                    # For now we re-generate with the modification prompt appended
-                    company = db_services.get_company_data(company_id)
-                    mod_context = {
-                        "user_request": f"{result['prompt']}\n\nModification: {mod_prompt}",
-                        "company": company or {},
-                    }
-                    mod_result = ai.execute_image_skill(
-                        "generate_template",
-                        context=mod_context,
-                        aspect_ratio=result['ratio'],
+                    res = template_workflows.modify_ai_template(
+                        result['prompt'], mod_prompt, result['ratio'], company_id
                     )
-                    if mod_result.get("success"):
-                        st.session_state.template_ai_modified = mod_result["content"]
+                    if res.get("success"):
+                        st.session_state.template_ai_modified = res["data"]
                         st.rerun()
                     else:
-                        st.error(f"Modification failed: {mod_result.get('error', 'Unknown error')}")
+                        st.error(res.get("error"))
 
         # Save button
         if st.button("Save Template to Database", icon=":material/save:", type="primary", key="save_ai_tpl"):
-            with st.spinner("Uploading template image..."):
-                tpl_url = db_services.upload_image(result['bytes'], folder="templates")
-                if not tpl_url:
-                    st.error("Failed to upload template image.")
-                    return
-            
-            data = {
-                "company_id": company_id,
-                "template_info": result['name'],
-                "aspect_ratio": result['ratio'],
-                "template_constraints": result.get('constraints', ''),
-                "template_url": tpl_url
-            }
-            if db_services.create_template(data):
-                st.success("Template saved successfully!")
-                st.session_state.template_ai_result = None
-                st.session_state.template_ai_modified = None
-                st.session_state.template_create_mode = None
-                st.rerun()
-            else:
-                st.error("Failed to save template.")
+            with st.spinner("Saving template..."):
+                res = template_workflows.save_generated_template(
+                    company_id, result['name'], result['ratio'], result.get('constraints', ''), result['bytes']
+                )
+                if res.get("success"):
+                    st.success("Template saved successfully!")
+                    st.session_state.template_ai_result = None
+                    st.session_state.template_ai_modified = None
+                    st.session_state.template_create_mode = None
+                    st.rerun()
+                else:
+                    st.error(res.get("error"))

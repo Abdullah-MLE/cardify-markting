@@ -1,8 +1,7 @@
 import streamlit as st
 import time
 from services import db_services
-from services.ai_service import get_ai_service
-from schemas.ai_models import CompanyExtraction
+from services.workflows import company_workflows
 
 @st.dialog("Add New Company")
 def add_company_dialog():
@@ -17,15 +16,10 @@ def add_company_dialog():
                 st.error("Please provide a URL or description.")
             else:
                 with st.spinner("Analyzing with AI..."):
-                    ai = get_ai_service()
-                    context = {"source_text": source_text}
-                    result = ai.execute_text_skill("analyze_company", context=context, response_schema=CompanyExtraction)
+                    result = company_workflows.analyze_and_extract_company_profile(source_text)
                     
                     if result.get("success"):
-                        data = result["content"]
-                        if hasattr(data, 'model_dump'):
-                            data = data.model_dump()
-                        st.session_state['ai_extracted_company'] = data
+                        st.session_state['ai_extracted_company'] = result["data"]
                         st.rerun()
                     else:
                         st.error(f"Failed to extract details: {result.get('error')}")
@@ -59,14 +53,14 @@ def add_company_dialog():
                             "target_audience": audience,
                             "language_and_locale": locale
                         }
-                        res = db_services.create_company(company_data)
-                        if res:
+                        res = company_workflows.save_company_profile(company_data)
+                        if res.get("success"):
                             del st.session_state['ai_extracted_company']
                             st.success("Company created successfully!")
                             time.sleep(0.5)
                             st.rerun()
                         else:
-                            st.error("Failed to create company.")
+                            st.error(res.get("error"))
 
     with tab2:
         with st.form("manual_comp_form"):
@@ -96,13 +90,13 @@ def add_company_dialog():
                         "target_audience": audience,
                         "language_and_locale": locale
                     }
-                    res = db_services.create_company(company_data)
-                    if res:
+                    res = company_workflows.save_company_profile(company_data)
+                    if res.get("success"):
                         st.success("Company created successfully!")
                         time.sleep(0.5)
                         st.rerun()
                     else:
-                        st.error("Failed to create company.")
+                        st.error(res.get("error"))
 
 
 @st.dialog("Edit Company")
@@ -134,13 +128,13 @@ def edit_company_dialog(comp):
             "target_audience": audience,
             "language_and_locale": locale
         }
-        res = db_services.update_company(comp['id'], update_data)
-        if res is not None:
+        res = company_workflows.update_company_profile(comp['id'], update_data)
+        if res.get("success"):
             st.success("Company updated successfully!")
             time.sleep(0.5)
             st.rerun()
         else:
-            st.error("Failed to update company.")
+            st.error(res.get("error"))
 
 @st.dialog("Manage Users")
 def manage_users_dialog(comp):

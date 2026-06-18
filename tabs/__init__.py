@@ -1,1 +1,1 @@
-# CampaignGenius Tabs Package
+# Cardify Marketing Tabs Package

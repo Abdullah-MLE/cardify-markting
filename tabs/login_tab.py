@@ -2,7 +2,7 @@ import streamlit as st
 from services.auth_service import authenticate_user
 
 def render():
-    st.title("Welcome to CampaignGenius")
+    st.title("Welcome to Cardify Marketing")
     st.subheader("Please Login")
     
     with st.container(border=True):

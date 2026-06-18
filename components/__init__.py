@@ -1,1 +1,1 @@
-# CampaignGenius Components Package
+# Cardify Marketing Components Package

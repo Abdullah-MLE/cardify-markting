@@ -1,8 +1,8 @@
-AGENTS.md — Global Agent Rules for CampaignGenius / Tansiq AI
+AGENTS.md — Global Agent Rules for Cardify Marketing
 This file is read by every AI agent (LLM call) in the system. It defines the shared rules.
 
 Project Overview
-CampaignGenius (also called Tansiq AI) is a social-media content management system that uses AI to generate posts, stories, carousels, templates, and weekly content plans for companies.
+Cardify Marketing is a social-media content management system that uses AI to generate posts, stories, carousels, templates, and weekly content plans for companies.
 
 Architecture
 
@@ -133,7 +133,8 @@ If you are an AI Agent working on this project, follow this guide to make modifi
 
 2. Adding a New Feature Tab:
    - Create a new file in 	abs/ (e.g., 	abs/my_new_tab.py).
-   - Implement a ender(company_id) function using Streamlit (st.).
+   - Implement a 
+ender(company_id) function using Streamlit (st.).
    - Import and add your new tab to pp.py in the navigation setup.
 
 3. Database Changes:

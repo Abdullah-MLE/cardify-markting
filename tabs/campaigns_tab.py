@@ -1,9 +1,7 @@
 import streamlit as st
 import datetime
-import json
 from services import db_services
-from services.ai_service import get_ai_service
-from schemas.ai_models import WeeklyPlanGeneration, DayContentGeneration
+from services.workflows import campaign_workflows
 
 
 @st.dialog("Create Campaign")
@@ -27,12 +25,13 @@ def create_campaign_dialog(company_id):
             "plan_content": plan_brief,
             "status": "active"
         }
-        res = db_services.create_campaign(data)
-        if res:
+        res = campaign_workflows.create_new_campaign(data)
+        if res.get("success"):
             st.success(f"Campaign '{name}' created!")
             st.rerun()
         else:
-            st.error("Failed to create campaign.")
+            st.error(res.get("error"))
+
 
 @st.dialog("Edit Campaign")
 def edit_campaign_dialog(camp):
@@ -65,12 +64,12 @@ def edit_campaign_dialog(camp):
             "plan_content": plan_brief,
             "status": camp.get('status', 'active')
         }
-        res = db_services.update_campaign(camp['id'], update_data)
-        if res is not None:
+        res = campaign_workflows.update_campaign_details(camp['id'], update_data)
+        if res.get("success"):
             st.success("Campaign updated successfully!")
             st.rerun()
         else:
-            st.error("Failed to update campaign.")
+            st.error(res.get("error"))
 
 
 def render():
@@ -134,7 +133,6 @@ def render():
 
 def _render_campaign_details(campaign_id, company_id):
     """Render the Campaign Details sub-view showing all posts for a campaign."""
-
     if st.button("Back to Campaigns", icon=":material/arrow_back:"):
         st.session_state.selected_campaign_id = None
         st.rerun()
@@ -147,6 +145,13 @@ def _render_campaign_details(campaign_id, company_id):
         st.session_state.selected_campaign_id = None
         return
 
+    _render_campaign_header(camp)
+    _render_ai_plan_section(campaign_id, company_id, camp)
+    _render_generated_posts_section(campaign_id, company_id)
+
+
+def _render_campaign_header(camp):
+    """Renders the top header information of a campaign."""
     st.subheader(camp.get('plan_title', 'Unnamed Campaign'))
 
     col_info1, col_info2, col_info3 = st.columns(3)
@@ -160,137 +165,64 @@ def _render_campaign_details(campaign_id, company_id):
         st.caption(f":material/business: Company ID: {camp.get('company_id')}")
 
     user_brief = camp.get('plan_content', '')
-
     if user_brief:
         with st.expander("Campaign Brief", icon=":material/description:"):
             st.write(user_brief)
 
-    # AI Plan handling
-    # ai_plan is assumed to be stored in the 'ai_plan' DB column as a JSON string or dict
+
+def _render_ai_plan_section(campaign_id, company_id, camp):
+    """Handles the display, generation, and editing of the AI Text Plan."""
     ai_plan_raw = camp.get('ai_plan')
-    ai_plan = None
-    if ai_plan_raw:
-        if isinstance(ai_plan_raw, str):
-            try:
-                ai_plan = json.loads(ai_plan_raw)
-            except:
-                ai_plan = None
-        else:
-            ai_plan = ai_plan_raw
+    user_brief = camp.get('plan_content', '')
 
     st.subheader("AI Campaign Plan", divider="gray")
-    if not ai_plan:
+    if not ai_plan_raw:
         st.info("No AI plan has been generated for this campaign yet.")
         if st.button("Generate Campaign Plan", icon=":material/smart_toy:", type="primary"):
-            with st.spinner("Generating campaign plan with AI..."):
-                ai = get_ai_service()
-                company_data = db_services.get_company_data(company_id) or {}
-                
-                context = {
-                    "company": company_data,
-                    "campaign": camp,
-                    "start_date": camp.get('start_date', ''),
-                    "notes": user_brief
-                }
-                result = ai.execute_text_skill("create_weekly_plan", context, response_schema=WeeklyPlanGeneration)
-                
-                if result.get("success"):
-                    generated_plan = result["content"]
-                    # Save back to DB column `ai_plan`
-                    # Supabase accepts either stringified JSON or dict if it's JSONB.
-                    # We'll use json dumps for safety if it's a Text column.
-                    plan_dict = generated_plan.model_dump() if hasattr(generated_plan, 'model_dump') else generated_plan.dict() if hasattr(generated_plan, 'dict') else generated_plan
-                    update_data = {
-                        "ai_plan": json.dumps(plan_dict, ensure_ascii=False)
-                    }
-                    db_services.update_campaign(campaign_id, update_data)
-                    st.success("Plan generated successfully!")
-                    st.rerun()
-                else:
-                    st.error(f"Failed to generate plan: {result.get('error')}")
+            _handle_generate_plan(campaign_id, company_id, camp, user_brief)
     else:
-        # Display editable AI Plan
         st.success("AI Plan is ready!")
         with st.expander("Review and Edit AI Plan", expanded=True, icon=":material/edit_document:"):
-            st.info("You can edit the JSON below to tweak the plan before creating the text for each day.")
-            
-            # Format the JSON nicely for the text area
-            formatted_json = json.dumps(ai_plan, indent=4, ensure_ascii=False)
-            
-            edited_json_str = st.text_area("AI Plan (JSON)", value=formatted_json, height=300)
+            st.info("You can edit the text plan below. This exact text will be sent to the AI for the next step.")
+            edited_plan_str = st.text_area("AI Plan (Text)", value=ai_plan_raw, height=300)
             
             if st.button("Save Edited AI Plan"):
-                try:
-                    # Validate JSON
-                    parsed_edited = json.loads(edited_json_str)
-                    update_data = {
-                        "ai_plan": json.dumps(parsed_edited, ensure_ascii=False)
-                    }
-                    res = db_services.update_campaign(campaign_id, update_data)
-                    if res is not None:
-                        st.success("Edited AI plan saved successfully!")
-                        st.rerun()
-                    else:
-                        st.error("Failed to save changes to the DB.")
-                except json.JSONDecodeError:
-                    st.error("Invalid JSON. Please check the formatting before saving.")
+                res = campaign_workflows.save_edited_campaign_plan(campaign_id, edited_plan_str)
+                if res.get("success"):
+                    st.success("Edited AI plan saved successfully!")
+                    st.rerun()
+                else:
+                    st.error(res.get("error"))
         
         st.write("---")
-        # Text Generation button
-        if st.button("Create Text", icon=":material/article:", type="primary", help="Generate daily text content (without images) based on the AI plan"):
-            with st.spinner("Generating daily detailed text content..."):
-                ai = get_ai_service()
-                company_data = db_services.get_company_data(company_id) or {}
-                
-                try:
-                    start_dt = datetime.date.fromisoformat(camp.get('start_date', ''))
-                except:
-                    start_dt = datetime.date.today()
+        if st.button("Create Text", icon=":material/article:", type="primary", help="Generate daily text content based on the text plan"):
+            _handle_create_text_action(campaign_id, company_id, camp, ai_plan_raw, user_brief)
 
-                all_success = True
-                days = ai_plan.get('days', [])
-                for idx, day in enumerate(days):
-                    current_dt = start_dt + datetime.timedelta(days=idx)
-                    
-                    context = {
-                        "weekly_plan": ai_plan,
-                        "company": company_data,
-                        "date": str(current_dt),
-                        "day_name": day.get('day_name', ''),
-                        "day_order": str(idx + 1),
-                        "notes": user_brief
-                    }
-                    
-                    res = ai.execute_text_skill("generate_day_content", context, response_schema=DayContentGeneration)
-                    if res.get("success"):
-                        day_content_obj = res.get("content", {})
-                        day_content = day_content_obj.model_dump() if hasattr(day_content_obj, 'model_dump') else day_content_obj.dict() if hasattr(day_content_obj, 'dict') else day_content_obj
-                        items = day_content.get("content_list", [])
-                        for item in items:
-                            db_item = {
-                                "company_id": company_id,
-                                "campaign_id": campaign_id,
-                                "content_type": item.get("type", "post"),
-                                "publish_date": str(current_dt),
-                                "publish_time": f"{item.get('posting_hour', 12):02d}:00:00",
-                                "status": "planned",
-                                "h1": item.get("headlines", []),
-                                "caption": item.get("caption", ""),
-                                "post_images": [],  # INTENTIONALLY EMPTY (no images generated yet)
-                                "publish_day": current_dt.strftime("%A"),
-                                "use_character": False,
-                                "post_idea": "\n".join(item.get("post_ideas", []))
-                            }
-                            db_services.create_content(db_item)
-                    else:
-                        st.error(f"Failed generating content for {current_dt}: {res.get('error')}")
-                        all_success = False
 
-                if all_success:
-                    st.success("Text content generated successfully for all days! You can view them below or in Day Details.")
-                    st.rerun()
+def _handle_generate_plan(campaign_id, company_id, camp, user_brief):
+    """Executes the AI task to generate the initial plain text plan."""
+    with st.spinner("Generating campaign plan with AI..."):
+        res = campaign_workflows.generate_and_save_ai_plan(campaign_id, company_id, camp, user_brief)
+        if res.get("success"):
+            st.success("Plan generated successfully!")
+            st.rerun()
+        else:
+            st.error(res.get("error"))
 
-    # Fetch posts for this campaign
+
+def _handle_create_text_action(campaign_id, company_id, camp, ai_plan_raw, user_brief):
+    """Loops over the campaign duration to generate detailed content for each day."""
+    with st.spinner("Generating daily detailed text content..."):
+        res = campaign_workflows.generate_daily_content_loop(campaign_id, company_id, camp, ai_plan_raw, user_brief)
+        if res.get("success"):
+            st.success("Text content generated successfully for all days! You can view them below or in Day Details.")
+            st.rerun()
+        else:
+            st.error(res.get("error"))
+
+
+def _render_generated_posts_section(campaign_id, company_id):
+    """Renders the list of generated posts for the campaign."""
     all_content = db_services.get_scheduled_content(company_id)
     campaign_posts = [c for c in all_content if c.get('campaign_id') == campaign_id]
 

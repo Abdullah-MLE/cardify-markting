@@ -1,7 +1,6 @@
 import streamlit as st
 import io
 from services import db_services
-from services.ai_service import get_ai_service
 
 def render():
     st.title("Image Generation")
@@ -68,35 +67,21 @@ def render():
             st.error("Please enter a prompt.")
         else:
             with st.spinner("Generating image with AI..."):
-                ai = get_ai_service()
-                company = db_services.get_company_data(company_id)
-                context = {
-                    "prompt": prompt,
-                    "headline": "",
-                    "post_idea": prompt,
-                    "template_constraints": "",
-                    "company": company or {},
-                }
+                from services.workflows import content_workflows
+                
+                tpl = None
                 if selected_template:
                     tpl = next((t for t in templates if t['id'] == selected_template), None)
-                    if tpl:
-                        context["template_constraints"] = tpl.get('template_constraints', '')
+                
+                res = content_workflows.generate_standalone_image(prompt, company_id, tpl)
 
-                media = [template_url] if template_url else None
-                result = ai.execute_image_skill(
-                    "generate_image",
-                    context=context,
-                    media=media,
-                    aspect_ratio=aspect_ratio,
-                )
-
-                if result.get("success"):
+                if res.get("success"):
                     st.session_state.generated_image = {
-                        "bytes": result["content"],
+                        "bytes": res["data"],
                         "prompt": prompt
                     }
                 else:
-                    st.error(f"Image generation failed: {result.get('error', 'Unknown error')}")
+                    st.error(f"Image generation failed: {res.get('error', 'Unknown error')}")
 
     if st.session_state.generated_image:
         st.subheader("Generated Result", divider="gray")

@@ -1,75 +1,85 @@
-"""Prompts for Day Content generation and editing."""
-from typing import Dict, Any
+"""Prompts for Content Workflows (Text and Image Generation)."""
 
-
-def day_content_system_prompt() -> str:
+def single_post_system_prompt() -> str:
     prompt = [
-        "You are an expert social media strategist.",
-        "Your task is to generate a daily content plan as a LIST of items.",
+        "You are an expert social media content creator.",
+        "Your task is to generate a SINGLE complete content item from a headline and notes.",
         "",
-        "## UNIFIED CONTENT STRUCTURE",
-        "Every content item (Post, Story, Carousel) shares the same structure but uses the lists differently.",
-        "Structure: type, headlines (list), caption (string), post_ideas (list), posting_hour, use_character.",
+        "## CONTENT TYPE DETECTION",
+        "- If the user asks for a 'carousel' in the notes, set content_type to 'carousel'.",
+        "- If the user asks for a 'story' in the notes, set content_type to 'story'.",
+        "- Otherwise, default to content_type = 'post'.",
         "",
         "## RULES BY TYPE",
-        "### 1. Posts and Stories ('post', 'story')",
-        "- 'headlines': List containing EXACTLY ONE headline.",
-        "- 'post_ideas': List containing EXACTLY ONE visual description.",
-        "- 'caption': Single caption.",
+        "### post / story",
+        "- 'headlines': List with EXACTLY ONE headline.",
+        "- 'post_ideas': List with EXACTLY ONE visual description.",
         "",
-        "### 2. Carousels ('carousel')",
-        "- 'headlines': List of strings. Each string is the text for one slide.",
-        "- 'post_ideas': List of strings. Each string is the visual description for one slide.",
-        "- 'caption': Single caption for the whole carousel.",
-        "**Important**: The length of 'headlines' and 'post_ideas' MUST MATCH.",
+        "### carousel",
+        "- 'headlines': List of strings, one per slide.",
+        "- 'post_ideas': List of strings, one visual description per slide.",
+        "- The length of 'headlines' and 'post_ideas' MUST MATCH.",
         "",
-        "## CONTENT GUIDELINES",
-        "- Language: ARABIC (headlines/captions), English (internal ideas).",
-        "- Tone: Use company brand tone.",
+        "## GUIDELINES",
+        "- Use the company's brand tone and language.",
         "- NO Emojis.",
+        "- Visual descriptions (post_ideas) must be in English.",
+        "- Headlines and captions follow the company's language/locale.",
         "",
-        "## OUTPUT FORMAT",
-        "Return a valid JSON object matching DayContentGeneration schema.",
-        "It contains content_list: [item1, item2, ...].",
+        "## OUTPUT",
+        "Return a valid JSON matching SinglePostGeneration schema."
     ]
     return "\n".join(prompt)
 
-
-def day_content_user_prompt(company: dict, weekly_plan: dict, day_name: str, date: str, day_order: str, notes: str) -> str:
+def single_post_user_prompt(h1: str, notes: str, company: dict) -> str:
     prompt = [
-        "## CONTEXT",
-        f"Company: {company.get("company_name", "")} ({company.get("industry", "")})",
-        f"Target Audience: {company.get("target_audience", "")}",
-        f"Tone: {company.get("brand_tone", "")}",
-        f"Munaasik Character: {'Yes' if company.get("is_character", "") else 'No'}",
+        "## HEADLINE",
+        f"{h1}",
         "",
-        "## WEEKLY STRATEGY",
-        f"Title: {weekly_plan.get("plan_title", "")}",
-        f"Focus: {weekly_plan.get("plan_content", "")}",
+        "## USER NOTES",
+        f"{notes}" if notes else "No specific notes.",
         "",
-        "## TODAY'S TASK",
-        f"Day: {day_name} ({date}) - Day Order: {day_order}",
-        f"Manager Notes: {notes}",
+        "## COMPANY CONTEXT",
+        f"- Name: {company.get('company_name', '')}",
+        f"- Industry: {company.get('industry', '')}",
+        f"- Tone: {company.get('brand_tone', '')}",
+        f"- Audience: {company.get('target_audience', '')}",
+        f"- Locale: {company.get('language_and_locale', '')}",
+        f"- Character: {'Yes' if company.get('is_character', '') else 'No'}",
         "",
         "## INSTRUCTION",
-        "Generate the optimal mix of content (posts, stories, carousels) to achieve the day's goal.",
-        "Ensure variety and alignment with the weekly focus.",
+        "Generate a complete content item based on the headline and notes above."
     ]
     return "\n".join(prompt)
 
-
-def edit_day_content_system_prompt() -> str:
+def image_gen_system_prompt() -> str:
     prompt = [
-        "You are a social media editor.",
-        "Update the content based on the user's request.",
-        "Return the updated JSON object.",
+        "You are an Image Generation Specialist.",
+        "Generate a high-quality image based on the prompt.",
     ]
     return "\n".join(prompt)
 
+def image_gen_user_prompt(prompt: str, headline: str, post_idea: str, template_constraints: str) -> str:
+    text = [
+        "Create a social media image.",
+        f"Prompt Idea: {prompt}",
+        f"Headline (For Context): {headline}",
+        f"Visual Context: {post_idea}",
+        f"Template Constraints (Must Follow): {template_constraints}",
+    ]
+    return "\n".join(text)
 
-def edit_day_content_user_prompt(day_content_json: str, notes: str) -> str:
+def image_edit_system_prompt() -> str:
     prompt = [
-        f"Current Content: {day_content_json}",
-        f"User Update Request: {notes}",
+        "You are an image editing model.",
+        "You will receive an editing prompt and an original image.",
+        "Your task: Produce a new image that aligns with the user's request."
+    ]
+    return "\n".join(prompt)
+
+def image_edit_user_prompt(post_idea: str, notes: str) -> str:
+    prompt = [
+        f"Edit this image based on the user request: {notes}",
+        f"Original Context: {post_idea}",
     ]
     return "\n".join(prompt)

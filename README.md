@@ -1,10 +1,10 @@
-# CampaignGenius (Tansiq AI)
+# Cardify Marketing
 
-Welcome to **CampaignGenius** (also known as Tansiq AI)! This is a powerful, AI-driven social media content management system designed to generate posts, stories, carousels, templates, and weekly content plans for companies.
+Welcome to **Cardify Marketing** (also known as Cardify Marketing)! This is a powerful, AI-driven social media content management system designed to generate posts, stories, carousels, templates, and weekly content plans for companies.
 
 ## 🌟 Overview
 
-CampaignGenius streamlines the social media workflow by integrating advanced AI capabilities. It helps businesses automate and manage their daily social content with a beautiful and interactive user interface.
+Cardify Marketing streamlines the social media workflow by integrating advanced AI capabilities. It helps businesses automate and manage their daily social content with a beautiful and interactive user interface.
 
 ## 🏗️ Architecture
 
@@ -69,4 +69,4 @@ The project is built with modern, scalable technologies and follows a strict, mo
 - **Strict Schemas:** Always handle strict outputs, handling `null` instead of empty strings when data is unknown.
 - **No Emojis in Output:** Emojis are strictly stripped from all generated content as per global rules.
 
-Enjoy creating brilliant campaigns with **CampaignGenius**!
+Enjoy creating brilliant campaigns with **Cardify Marketing**!

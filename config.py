@@ -7,7 +7,7 @@ env_path = os.path.join(base_dir, ".env")
 load_dotenv(env_path)
 
 class Config:
-    PROJECT_NAME = "CampaignGenius"
+    PROJECT_NAME = "Cardify Marketing"
     
     # Supabase
     SUPABASE_URL = os.getenv("SUPABASE_URL", "")
