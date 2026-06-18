@@ -1,5 +1,65 @@
 import streamlit as st
 from services import db_services
+from services.ai_service import get_ai_service
+
+@st.dialog("Generate Image")
+def generate_image_dialog(item, company_id):
+    st.write("Generate an image for this post.")
+    
+    templates = db_services.get_templates(company_id)
+    if not templates:
+        st.warning("No templates found for this company. Please create one first.")
+        return
+        
+    template_options = {t['id']: t.get('name', 'Unnamed') for t in templates}
+    selected_template_id = st.selectbox("Select Template", options=list(template_options.keys()), format_func=lambda x: template_options[x])
+    
+    post_idea = item.get('post_idea', '')
+    st.text_area("Post Idea (Visual Prompt)", value=post_idea, disabled=True)
+    
+    if st.button("Generate & Save Image", type="primary"):
+        with st.spinner("Generating image..."):
+            ai = get_ai_service()
+            
+            # Fetch template details
+            selected_template = next((t for t in templates if t['id'] == selected_template_id), None)
+            template_constraints = selected_template.get('template_constraints', '') if selected_template else ''
+            template_url = selected_template.get('template_url') if selected_template else None
+            
+            context = {
+                "prompt": post_idea,
+                "headline": ", ".join(item.get('h1', [])) if item.get('h1') else "",
+                "post_idea": post_idea,
+                "template_constraints": template_constraints
+            }
+            media = [template_url] if template_url else None
+            
+            # Determine aspect ratio from template or default
+            aspect_ratio = selected_template.get('aspect_ratio', '1:1') if selected_template else '1:1'
+            
+            result = ai.execute_image_skill(
+                "generate_image",
+                context=context,
+                media=media,
+                aspect_ratio=aspect_ratio
+            )
+            
+            if result.get("success"):
+                with st.spinner("Uploading to storage..."):
+                    img_bytes = result["content"]
+                    img_url = db_services.upload_image(img_bytes)
+                    if img_url:
+                        # Update the content item in the DB
+                        update_data = {"post_images": [img_url]}
+                        if db_services.update_content(item['id'], update_data):
+                            st.success("Image generated and saved successfully!")
+                            st.rerun()
+                        else:
+                            st.error("Failed to update database with new image.")
+                    else:
+                        st.error("Failed to upload image to storage.")
+            else:
+                st.error(f"Image generation failed: {result.get('error')}")
 
 
 def render_item_card(item, campaigns=None):
@@ -46,12 +106,17 @@ def render_item_card(item, campaigns=None):
 
         # --- Image preview: small thumbnails, max 4 ---
         images = item.get('post_images')
-        if images and isinstance(images, list):
+        if images and isinstance(images, list) and len(images) > 0:
             preview_images = images[:4]
             img_cols = st.columns(len(preview_images))
             for idx, img_url in enumerate(preview_images):
                 with img_cols[idx]:
                     st.image(img_url, width=100)
+        else:
+            st.info("No image associated with this post.")
+            if st.button("Create Image", key=f"create_img_btn_{item.get('id')}", icon=":material/image:", type="primary"):
+                company_id = item.get('company_id')
+                generate_image_dialog(item, company_id)
 
         # --- Action buttons ---
         btn_col1, btn_col2 = st.columns(2)

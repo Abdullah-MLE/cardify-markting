@@ -30,7 +30,7 @@ class GeminiWrapper:
                 self.client = genai.Client(
                     vertexai=True, 
                     project=root_config.GCP_PROJECT_ID, 
-                    location=root_config.GCP_LOCATION
+                    location="global"
                 )
                 self.image_client = genai.Client(
                     vertexai=True, 
@@ -116,27 +116,23 @@ class GeminiWrapper:
         full_prompt = f"{prompt_text}\n\nRequested Aspect Ratio: {aspect_ratio}"
 
         def api_call(model_name: str) -> Any:
-            content_config = types.GenerateContentConfig(
-                response_modalities=["IMAGE"],
+            image_config = types.GenerateImagesConfig(
+                number_of_images=1,
+                output_mime_type="image/jpeg",
+                aspect_ratio=aspect_ratio,
             )
-            contents = [full_prompt]
-            if input_params.media:
-                media_parts = self._process_media_to_parts(input_params)
-                contents.extend(media_parts)
-
-            return self.image_client.models.generate_content(
+            # Note: Imagen models typically do not support media parts as prompt.
+            # We only send the text prompt.
+            return self.image_client.models.generate_images(
                 model=model_name,
-                contents=contents,
-                config=content_config,
+                prompt=full_prompt,
+                config=image_config,
             )
 
         def extract_image(response: Any) -> bytes:
             try:
-                if response.candidates:
-                    for part in response.candidates[0].content.parts:
-                        if hasattr(part, 'inline_data') and part.inline_data:
-                            if hasattr(part.inline_data, 'data'):
-                                return part.inline_data.data
+                if hasattr(response, "generated_images") and response.generated_images:
+                    return response.generated_images[0].image.image_bytes
             except Exception as exc:
                 self.logger.warning(f"Error extracting image from response: {exc}")
             raise ValueError("No image data found in response.")

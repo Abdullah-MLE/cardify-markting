@@ -68,7 +68,6 @@ class AIService:
             user_prompt = prompts.create_weekly_plan_user_prompt(
                 context.get("company", {}),
                 context.get("campaign", {}),
-                context.get("start_date", ""),
                 context.get("notes", "")
             )
         elif skill_name == "analyze_template":
