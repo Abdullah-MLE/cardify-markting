@@ -317,7 +317,8 @@ class GeminiWrapper:
 
     def _download_media(self, url: str) -> tuple:
         """Download media from *url* and return ``(bytes, content_type)``."""
-        response = requests.get(url, timeout=30)
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
+        response = requests.get(url, headers=headers, timeout=30)
         response.raise_for_status()
         content_type = response.headers.get("Content-Type", "image/jpeg")
         return response.content, content_type
@@ -339,6 +340,8 @@ class GeminiWrapper:
                 new_width = int(width * (max_dimension / height))
 
             img = img.resize((new_width, new_height), Image.LANCZOS)
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
             buf = io.BytesIO()
             img_format = img.format or "JPEG"
             img.save(buf, format=img_format)

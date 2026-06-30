@@ -1,0 +1,3 @@
+"""Frontend Pages Package."""
+
+render()

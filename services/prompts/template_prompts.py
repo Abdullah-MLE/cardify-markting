@@ -5,25 +5,15 @@ from schemas.ai_models import TemplateAnalysis
 
 def template_analysis_system_prompt() -> str:
     prompt = [
-        "بص اليوزر هيبعت لك post عايز يعمله templet",
-        "وهيبعت صوره الشعار بتاع شركته ومعلومات الشركه كامله",
-        "مطلوب منك تقول أولا هل نفس الشركه ولا لا",
-        "عشان ممكن يبعت نفس الشركه",
-        "ثانيا تقول ال aspect_ratio بتاعت ال post",
-        "خلي بالك ممكن يبعت اسكرين شوت مثلا انت لازم تحدد فين ال post بالظبط وتقول ال aspect_ratio بتاعته",
-        "اختار من هنا  1:1, 3:4, 4:3, 9:16, 16:9",
-        "ثالثا بناء على معلومات الشركه لازم تحدد ايه اللي هيتغير وايه اللي هيتحذف وايه اللي هيفضل",
-        "مثلا لو البوست اللي هو باعته مكتوبه فيه رقم تلفون",
-        "والشركه لها رقم تلفون ومش هم هم قول غير رقم التلفون اللي موجود برقم تلفون الشركه",
-        "لو الشركه مش لها رقم تلفون يبقا حط في اللي هيتحذف رقم التلفون",
-        "وهكذا",
-        "وقول ايه اللي هيفضل",
-        "مثلا لو في الحاجات معينه في الخلفيه شايف انها المفروض تكون تبع ال templet قول انها لازم تفضل",
-        "انت لازم تفضل بين المحتوي الكريتيف اللي بيتغير كل مره والمحتوي اللي ثابت علطول",
-        "وفي الحاجات اللي هتفضل او هتتغير لازم توضح مكانها فين فوق يمين او تحت يسار ..",
-        "بص ال keep, change, remove دي لازم توضح فيها كل حاجه لا تترك اي شيء حتي لو صغير للصدفه",
-        "لازم توضح ان ال templet هيكون خالي من اي محتوي يعني لا تكتب اي شيء في ال templet انا عايزه فاضي خالص",
-        "لو مش نفس الشركه لازم كل معلومات التواصل تقول انها تتغير او تتحذف لا تترك اي شيء من البوست القديم",
+        "You are an AI assistant analyzing a social media post to extract a template.",
+        "The user will provide a post design image and their company logo/details.",
+        "Your task is to analyze the image and output a JSON containing:",
+        "1. is_same_company: True if the design matches the user's company branding, False otherwise.",
+        "2. aspect_ratio: The aspect ratio of the post design (Choose from: 1:1, 3:4, 4:3, 9:16, 16:9).",
+        "3. keep: List of visual elements that must remain in the blank template (e.g., logo position, footer layout, background shapes).",
+        "4. change: List of elements that should change per post (e.g., product image, main headline text, phone numbers).",
+        "5. remove: List of elements that should be deleted completely (e.g., unrelated contact details, specific campaign logos).",
+        "Ensure your analysis isolates creative temporary content from permanent brand layout structures.",
     ]
     return "\n".join(prompt)
 
@@ -31,42 +21,37 @@ def template_analysis_system_prompt() -> str:
 def template_analysis_user_prompt(company: dict) -> str:
     prompt = [
         "## Company Profile",
-        f"- Name: {company.get("company_name", "")}",
-        f"- Industry: {company.get("industry", "")}",
-        f"- Description: {company.get("description", "")}",
-        f"- Mission and Goal: {company.get("mission_and_goal", "")}",
-        f"- Brand Tone: {company.get("brand_tone", "")}",
-        f"- Target Audience: {company.get("target_audience", "")}",
-        f"- Locale: {company.get("language_and_locale", "")}",
-        f"- Brand Colors: {company.get("brand_color", "")}",
-        f"- Visual Style: {company.get("visual_style", "")}",
-        f"- Visual Constraints: {company.get("visual_constraints", "")}",
-        f"- Main Character: {company.get("main_character_name", "")} (Is Character: {company.get("is_character", "")})",
-        f"- Character Constraints: {company.get("main_character_constraints", "")}",
-        f"- Character Image: {company.get("main_character_image_url", "")}",
-        f"- Website: {company.get("website_url", "")}",
-        f"- Social Media Username: {company.get("social_media_username", "")}",
-        f"- Facebook: {company.get("facebook_url", "")}",
-        f"- X (Twitter): {company.get("x_url", "")}",
-        f"- Instagram: {company.get("instagram_url", "")}",
-        f"- LinkedIn: {company.get("linkedin_url", "")}",
-        f"- TikTok: {company.get("tiktok_url", "")}",
-        f"- General Constraints: {company.get("constraints", "")}",
+        f"- Name: {company.get('company_name', '')}",
+        f"- Industry: {company.get('industry', '')}",
+        f"- Description: {company.get('description', '')}",
+        f"- Mission and Goal: {company.get('mission_and_goal', '')}",
+        f"- Brand Tone: {company.get('brand_tone', '')}",
+        f"- Target Audience: {company.get('target_audience', '')}",
+        f"- Locale: {company.get('language_and_locale', '')}",
+        f"- Brand Colors: {company.get('brand_color', '')}",
+        f"- Visual Style: {company.get('visual_style', '')}",
+        f"- Visual Constraints: {company.get('visual_constraints', '')}",
+        f"- Main Character: {company.get('main_character_name', '')} (Is Character: {company.get('is_character', '')})",
+        f"- Character Constraints: {company.get('main_character_constraints', '')}",
+        f"- Character Image: {company.get('main_character_image_url', '')}",
+        f"- Website: {company.get('website_url', '')}",
+        f"- Social Media Username: {company.get('social_media_username', '')}",
+        f"- Facebook: {company.get('facebook_url', '')}",
+        f"- X (Twitter): {company.get('x_url', '')}",
+        f"- Instagram: {company.get('instagram_url', '')}",
+        f"- LinkedIn: {company.get('linkedin_url', '')}",
+        f"- TikTok: {company.get('tiktok_url', '')}",
+        f"- General Constraints: {company.get('constraints', '')}",
     ]
     return "\n".join(prompt)
 
 
 def template_creation_from_prompt_system_prompt() -> str:
     prompt = [
-        "بص انت مصمم جرافيك محترف ومبدع",
-        "دورك عمل تصميم templet للسوشيال ميديا بناء على طلب المستخدم",
-        "اليوزر هيبعت لك وصف للتصميم اللي هو عايزه او تخيله ليه",
-        "وهيبعت لك شعار الشركه ومعلومات عنها",
-        "لازم التصميم يكون احترافي جدا ويناسب هوية الشركه",
-        "والاهم ان ده templet يعني لازم يكون فاضي من اي محتوي نصي او صور",
-        "صمم الخلفية والاماكن الفاضية وتوزيع العناصر (شعار، تذييل، هيدر) بشكل متناسق",
-        "ممنوع تحط اي كلام او صور اشخاص او منتجات، فقط اماكن فاضية ليهم",
-        "التصميم لازم يكون clean و professional",
+        "You are a professional graphic designer.",
+        "Your job is to generate a blank social media template image based on the user's text description and company profile.",
+        "Make sure the template is beautiful, aligned with the company branding, and completely empty of any temporary post text, people, or product images.",
+        "Only generate the background design, layout shapes, and layout placeholders (header, footer, logo area).",
     ]
     return "\n".join(prompt)
 
@@ -77,31 +62,29 @@ def template_creation_from_prompt_user_prompt(company: dict, user_request: str) 
         f"{user_request}",
         "",
         "## Company Profile",
-        f"- Name: {company.get("company_name", "")}",
-        f"- Industry: {company.get("industry", "")}",
-        f"- Description: {company.get("description", "")}",
-        f"- Mission: {company.get("mission_and_goal", "")}",
-        f"- Tone: {company.get("brand_tone", "")}",
-        f"- Audience: {company.get("target_audience", "")}",
-        f"- Colors: {company.get("brand_color", "")}",
-        f"- Style: {company.get("visual_style", "")}",
-        f"- Constraints: {company.get("constraints", "")} {company.get("visual_constraints", "")}",
-        f"- Character: {company.get("main_character_name", "") if company.get("is_character", "") else 'None'}",
-        f"- Socials: {company.get("social_media_username", "")}",
+        f"- Name: {company.get('company_name', '')}",
+        f"- Industry: {company.get('industry', '')}",
+        f"- Description: {company.get('description', '')}",
+        f"- Mission: {company.get('mission_and_goal', '')}",
+        f"- Tone: {company.get('brand_tone', '')}",
+        f"- Audience: {company.get('target_audience', '')}",
+        f"- Colors: {company.get('brand_color', '')}",
+        f"- Style: {company.get('visual_style', '')}",
+        f"- Constraints: {company.get('constraints', '')} {company.get('visual_constraints', '')}",
+        f"- Character: {company.get('main_character_name', '') if company.get('is_character', '') else 'None'}",
+        f"- Socials: {company.get('social_media_username', '')}",
     ]
     return "\n".join(prompt)
 
 
 def template_generation_system_prompt() -> str:
     prompt = [
-        "بص انت اداه توليد templets for social media",
-        "اليوزر هيبعت لك logo بتاع شركته وال post اللي عايز يعمل زيه والملاحظات للحاجات اللي عايز يغيرها ويعدلها ويحذها",
-        "دورك عمل templet فاضي تماما",
-        "ولازم يكون في شعار واضح",
-        "ال templet اللي هتعمله ده هيتم استخدامه علطول بعدين فخليك مركز وانت بتعمل كل تفصيله",
-        "لو في مكان لكلام او صوره خليه فاضي خالص عشان ده templet فلازم يكون خالي من اي شيء",
-        "حتي لازم يكون خالص من اي خلفيه",
-        "بشكل اساسي لازم يكون خالي من الخلفيه واي عناصر او اشخاص",
+        "You are an AI image generator specializing in blank social media templates.",
+        "You will receive a source post image, the company logo, and instructions on what elements to keep, change, or remove.",
+        "Generate a blank reusable template image.",
+        "Keep the logo exactly in the specified position.",
+        "Remove all post text, products, and temporary foreground elements.",
+        "Keep only the core design background and branding shapes.",
     ]
     return "\n".join(prompt)
 
@@ -130,7 +113,7 @@ def template_constraint_system_prompt() -> str:
 
 def template_constraint_user_prompt(company: dict) -> str:
     prompt = [
-        f"Company: {company.get("company_name", "")}",
+        f"Company: {company.get('company_name', '')}",
         "I have provided the Original Post and the New Blank Template.",
         "Compare them and write strict instructions on how to use this new template.",
         "Identify:",

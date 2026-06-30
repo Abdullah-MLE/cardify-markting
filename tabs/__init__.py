@@ -1,1 +1,0 @@
-# Cardify Marketing Tabs Package

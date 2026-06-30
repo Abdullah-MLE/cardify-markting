@@ -1,114 +1,80 @@
 import streamlit as st
 
-# MUST be the first Streamlit command
 st.set_page_config(
     page_title="Cardify Marketing",
-    page_icon=":material/campaign:",
+    page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# 1. State Initialization
-st.session_state.setdefault('user', None)
+# Initialize Session State
+if 'user' not in st.session_state:
+    st.session_state['user'] = None
 
-# Import tabs
-from tabs import (
-    login_tab,
-    admin_dashboard_tab,
-    schedule_tab,
-    day_details_tab,
-    campaigns_tab,
-    data_gathering_tab,
-    template_tab,
-    image_gen_tab,
-    carousel_studio_tab,
-    create_content_tab,
-    edit_content_tab
-)
+# Define Pages
+pages = {
+    "login": st.Page("frontend/pages/login_page.py", title="Login", icon=":material/login:"),
+    "admin_dashboard": st.Page("frontend/pages/admin_dashboard_page.py", title="Admin Dashboard", icon=":material/admin_panel_settings:"),
+    "data_gathering": st.Page("frontend/pages/data_gathering_page.py", title="Data Gathering", icon=":material/dataset:"),
+    "campaigns": st.Page("frontend/pages/campaigns_page.py", title="Campaigns", icon=":material/campaign:"),
+    "schedule": st.Page("frontend/pages/schedule_page.py", title="Schedule", icon=":material/calendar_month:"),
+    "day_details": st.Page("frontend/pages/day_details_page.py", title="Day Details", icon=":material/view_day:"),
+    "create_content": st.Page("frontend/pages/create_content_page.py", title="Create Content", icon=":material/add_box:"),
+    "content_details": st.Page("frontend/pages/content_details_page.py", title="Content Details", icon=":material/article:"),
+    "templates": st.Page("frontend/pages/template_page.py", title="Templates", icon=":material/dashboard_customize:"),
+    "edit_template": st.Page("frontend/pages/edit_template_page.py", title="Edit Template", icon=":material/edit:"),
+    "image_gen": st.Page("frontend/pages/image_gen_page.py", title="Standalone Image", icon=":material/image:"),
+    "carousel_studio": st.Page("frontend/pages/carousel_studio_page.py", title="Carousel Studio", icon=":material/view_carousel:"),
+}
 
-def main():
-    # If not logged in, show only the login page
-    if st.session_state.get('user') is None:
-        login_pg = st.navigation([st.Page(login_tab.render, title="Login", icon=":material/login:", url_path="login")])
-        login_pg.run()
-        return
+# Keep dictionary for easy switching
+st.session_state['pages_dict'] = pages
 
-    # If logged in, set up the sidebar and navigation
-    st.sidebar.title("Cardify Marketing")
-    
+# Navigation Logic
+if not st.session_state.get('user'):
+    pg = st.navigation([pages["login"]])
+else:
     user = st.session_state['user']
-    role = user.get('role', 'company_user')
-    company_name = user.get('company_name')
+    role = user.get('role', 'user')
     company_id = user.get('company_id')
     
-    st.sidebar.caption(f"Logged in as: {user['username']} ({role})")
-    
-    if company_id:
-        st.sidebar.subheader(f":material/business: {company_name or 'Selected Company'}")
-        if role == 'admin':
-            if st.sidebar.button("Deselect Company", icon=":material/close:", key="sidebar_deselect"):
-                st.session_state['user']['company_id'] = None
-                st.session_state['user']['company_name'] = None
-                st.rerun()
-                
-    st.sidebar.divider()
-    
-    if st.sidebar.button("Logout", icon=":material/logout:"):
-        st.session_state['user'] = None
-        st.rerun()
-    
-    # Initialize pages dictionary
-    pages = {}
-    
-    # Pre-create all Page objects to allow safe programmatic navigation
-    page_admin_dashboard = st.Page(admin_dashboard_tab.render, title="Companies Dashboard", icon=":material/admin_panel_settings:", url_path="admin_dashboard")
-    page_schedule = st.Page(schedule_tab.render, title="Schedule", icon=":material/calendar_month:", url_path="schedule")
-    page_day_details = st.Page(day_details_tab.render, title="Day Details", icon=":material/view_day:", url_path="day_details")
-    page_create_content = st.Page(create_content_tab.render, title="Create Content", icon=":material/add_circle:", url_path="create_content")
-    page_edit_content = st.Page(edit_content_tab.render, title="Edit Content", icon=":material/edit_note:", url_path="edit_content")
-    page_campaigns = st.Page(campaigns_tab.render, title="Campaigns", icon=":material/rocket_launch:", url_path="campaigns")
-    page_image_gen = st.Page(image_gen_tab.render, title="Image Gen", icon=":material/image:", url_path="image_gen")
-    page_carousel_studio = st.Page(carousel_studio_tab.render, title="Carousel Studio", icon=":material/view_carousel:", url_path="carousel_studio")
-    page_templates = st.Page(template_tab.render, title="Templates", icon=":material/design_services:", url_path="templates")
-    page_data_gathering = st.Page(data_gathering_tab.render, title="Data Gathering", icon=":material/database:", url_path="data_gathering")
-    
-    st.session_state['pages_dict'] = {
-        'admin_dashboard': page_admin_dashboard,
-        'schedule': page_schedule,
-        'day_details': page_day_details,
-        'create_content': page_create_content,
-        'edit_content': page_edit_content,
-        'campaigns': page_campaigns,
-        'image_gen': page_image_gen,
-        'carousel_studio': page_carousel_studio,
-        'templates': page_templates,
-        'data_gathering': page_data_gathering
-    }
+    # Setup Navigation Menu based on Role
+    nav_structure = {}
     
     if role == 'admin':
-        pages["Admin"] = [page_admin_dashboard]
+        nav_structure["Admin"] = [pages["admin_dashboard"]]
         
-    pages["Planner"] = [
-        page_schedule,
-        page_day_details,
-        page_create_content,
-        page_edit_content,
-    ]
-    pages["Creation"] = [
-        page_campaigns,
-    ]
-    pages["Studio"] = [
-        page_image_gen,
-        page_carousel_studio,
-        page_templates,
-    ]
-    pages["Settings"] = [
-        page_data_gathering,
+    nav_structure["Marketing"] = [pages["campaigns"], pages["schedule"], pages["create_content"]]
+    nav_structure["Assets"] = [pages["templates"], pages["image_gen"], pages["carousel_studio"]]
+    
+    # Hidden pages (accessible via st.switch_page but not in sidebar)
+    hidden_pages = [
+        pages["day_details"], 
+        pages["content_details"], 
+        pages["edit_template"],
+        pages["data_gathering"]
     ]
     
-    pg = st.navigation(pages)
-    pg.run()
+    pg = st.navigation(nav_structure | {"Hidden": hidden_pages})
+    
+    # Sidebar Info
+    with st.sidebar:
+        st.divider()
+        st.markdown(f"**Logged in as:** {user.get('username')}")
+        if role == 'admin':
+            st.caption("Admin Mode")
+            
+        if company_id:
+            from frontend.api_client import APIClient
+            comp = APIClient.get_company(company_id)
+            if comp:
+                st.info(f"**Active Company:**\n{comp.get('company_name')}")
+            else:
+                st.warning("Selected company not found.")
+                
+        if st.button("Logout", use_container_width=True):
+            st.session_state.clear()
+            st.rerun()
 
-
-if __name__ == "__main__":
-    main()
+# Run the page
+pg.run()
