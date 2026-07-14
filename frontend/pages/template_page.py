@@ -37,7 +37,7 @@ def render():
                             
                         if final_url:
                             res = APIClient.create_template_from_image(company_id, final_url, instructions)
-                            if res and "id" in res:
+                            if res and isinstance(res, list) and len(res) > 0 and "id" in res[0]:
                                 st.success("Template created successfully!")
                                 st.rerun()
                             else:

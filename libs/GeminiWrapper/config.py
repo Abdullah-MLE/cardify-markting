@@ -8,8 +8,8 @@ class GeminiConfig(BaseModel):
     text_fallback_models: List[str] = ["gemini-3.5-flash"]
 
     # Image Generation Models
-    default_image_model: str = "imagen-3.0-generate-001"
-    image_models: List[str] = ["imagen-3.0-generate-001"]
+    default_image_model: str = "gemini-3.1-flash-image-preview"
+    image_models: List[str] = ["gemini-3.1-flash-image-preview", "imagen-3.0-generate-001"]
 
     # Image Output Settings
     default_output_image_aspect_ratio: str = "1:1"

@@ -2,6 +2,7 @@ import time
 import requests
 import io
 import logging
+import base64
 from PIL import Image
 from typing import Any, Callable, Dict, List, Optional
 
@@ -110,31 +111,83 @@ class GeminiWrapper:
         models_to_try = self._prioritize_models(model, config.image_models)
         
         prompt_text = input_params.prompt or "A generic placeholder image"
+        sys_text = input_params.system_instruction or ""
         aspect_ratio = image_params.output_image_aspect_ratio or config.default_output_image_aspect_ratio
         
-        # Append aspect ratio to prompt for guidance if not handled by config
-        full_prompt = f"{prompt_text}\n\nRequested Aspect Ratio: {aspect_ratio}"
+        # Combine system instruction, user prompt, and aspect ratio guidance
+        full_prompt_parts = []
+        if sys_text:
+            full_prompt_parts.append(sys_text)
+        full_prompt_parts.append(prompt_text)
+        full_prompt_parts.append(f"Requested Aspect Ratio: {aspect_ratio}")
+        
+        full_prompt = "\n\n".join(full_prompt_parts)
 
         def api_call(model_name: str) -> Any:
-            image_config = types.GenerateImagesConfig(
-                number_of_images=1,
-                output_mime_type="image/jpeg",
-                aspect_ratio=aspect_ratio,
-            )
-            # Note: Imagen models typically do not support media parts as prompt.
-            # We only send the text prompt.
-            return self.image_client.models.generate_images(
-                model=model_name,
-                prompt=full_prompt,
-                config=image_config,
-            )
+            if "gemini" in model_name.lower():
+                input_list = []
+                max_dim = input_params.processed_image_size or config.default_image_max_dimension
+                if input_params.media:
+                    for media_url in input_params.media:
+                        try:
+                            media_bytes, content_type = self._download_media(media_url)
+                            if content_type and content_type.startswith("image"):
+                                media_bytes = self._resize_image(media_bytes, max_dim)
+                            input_list.append({
+                                "type": "image",
+                                "mime_type": content_type or "image/png",
+                                "data": base64.b64encode(media_bytes).decode("utf-8")
+                            })
+                        except Exception as exc:
+                            self.logger.warning(f"Failed to process media '{media_url}': {exc}")
+                
+                if full_prompt:
+                    input_list.append({"type": "text", "text": full_prompt})
+                
+                return self.client.interactions.create(
+                    model=model_name,
+                    input=input_list
+                )
+            else:
+                image_config = types.GenerateImagesConfig(
+                    number_of_images=1,
+                    output_mime_type="image/jpeg",
+                    aspect_ratio=aspect_ratio,
+                )
+                return self.image_client.models.generate_images(
+                    model=model_name,
+                    prompt=full_prompt,
+                    config=image_config,
+                )
 
         def extract_image(response: Any) -> bytes:
             try:
+                # 1. Try to extract from interactions API response
+                if hasattr(response, "steps"):
+                    for step in response.steps:
+                        if getattr(step, "type", "") == "model_output":
+                            for content_block in step.content:
+                                if getattr(content_block, "type", "") == "image":
+                                    return base64.b64decode(content_block.data)
+            except Exception as exc:
+                self.logger.warning(f"Failed to extract from interactions API: {exc}")
+
+            try:
+                # 2. Try to extract from generate_content response (Gemini models fallback)
+                if hasattr(response, "candidates") and response.candidates:
+                    for part in response.candidates[0].content.parts:
+                        if hasattr(part, "inline_data") and part.inline_data:
+                            return part.inline_data.data
+            except Exception as exc:
+                self.logger.warning(f"Failed to extract inline_data: {exc}")
+
+            try:
+                # 3. Try to extract from generate_images response (Imagen models)
                 if hasattr(response, "generated_images") and response.generated_images:
                     return response.generated_images[0].image.image_bytes
             except Exception as exc:
-                self.logger.warning(f"Error extracting image from response: {exc}")
+                self.logger.warning(f"Failed to extract image_bytes: {exc}")
+                
             raise ValueError("No image data found in response.")
 
         output = self._execute_with_retry(
