@@ -1,3 +1,0 @@
-"""Frontend Pages Package."""
-
-render()
