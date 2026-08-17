@@ -2,7 +2,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 from app.services.base_service import BaseService
 from app.crud import company_crud, template_crud, weekly_plan_crud, content_crud
-from app.schemas.content import ContentBase, ContentCreate, ContentResponse
+from app.schemas.content import ContentBase, ContentCreate, ContentUpdate, ContentResponse
 from app.schemas.ai_models import DayContentGeneration, SinglePostGeneration
 from app.core.prompts import day_content_system_prompt, day_content_user_prompt
 from app.core.prompts import single_post_system_prompt, single_post_user_prompt
@@ -76,7 +76,7 @@ class ContentService(BaseService):
         # Step 4: Save images to DB via CRUD layer
         if isinstance(image_urls, str):
             image_urls = [image_urls]
-        content_crud.update_images(self.supabase_crud, content_id, image_urls)
+        content_crud.update(self.supabase_crud, content_id, ContentUpdate(post_images=image_urls))
 
         # Step 5: Return full Content from DB
         return content_crud.get_by_id(self.supabase_crud, content_id)

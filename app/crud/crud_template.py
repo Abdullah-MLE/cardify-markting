@@ -8,23 +8,17 @@ class CRUDTemplate:
     def __init__(self):
         self.table_name = "templates"
 
-    def get(self, db: SupabaseCRUD, template_id: int) -> TemplateResponse | None:
+    def get_by_id(self, db: SupabaseCRUD, template_id: int) -> TemplateResponse:
         data = db.get_row_by_id(self.table_name, template_id)
         if not data:
-            return None
+            raise ValueError(f"Template with ID {template_id} not found.")
         return TemplateResponse(**data)
 
-    def get_by_id(self, db: SupabaseCRUD, template_id: int) -> TemplateResponse:
-        template = self.get(db, template_id)
-        if not template:
-            raise ValueError(f"Template with ID {template_id} not found.")
-        return template
-
-    def get_by_company(self, db: SupabaseCRUD, company_id: int) -> list[TemplateResponse]:
-        response = db.supabase_client.table(self.table_name).select('*').eq('company_id', company_id).execute()
-        return [TemplateResponse(**row) for row in response.data] if response.data else []
-
-    def get_all(self, db: SupabaseCRUD) -> list[TemplateResponse]:
+    def get_all(self, db: SupabaseCRUD, company_id: int = None) -> list[TemplateResponse]:
+        """Get all templates, optionally filtered by company_id."""
+        if company_id:
+            response = db.supabase_client.table(self.table_name).select('*').eq('company_id', company_id).execute()
+            return [TemplateResponse(**row) for row in response.data] if response.data else []
         rows = db.get_all_rows(self.table_name)
         return [TemplateResponse(**row) for row in rows] if rows else []
 
@@ -38,12 +32,6 @@ class CRUDTemplate:
         res = db.update_row(self.table_name, data, template_id)
         if not res:
             raise ValueError(f"Failed to update template {template_id}")
-        return TemplateResponse(**res)
-
-    def update_url(self, db: SupabaseCRUD, template_id: int, new_url: str) -> TemplateResponse:
-        res = db.update_row(self.table_name, {"template_url": new_url}, template_id)
-        if not res:
-            raise ValueError(f"Failed to update template url for {template_id}")
         return TemplateResponse(**res)
 
     def delete(self, db: SupabaseCRUD, template_id: int) -> bool:

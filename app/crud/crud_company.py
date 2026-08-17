@@ -8,17 +8,11 @@ class CRUDCompany:
     def __init__(self):
         self.table_name = "companies"
 
-    def get(self, db: SupabaseCRUD, company_id: int) -> CompanyResponse | None:
+    def get_by_id(self, db: SupabaseCRUD, company_id: int) -> CompanyResponse:
         data = db.get_row_by_id(self.table_name, company_id)
         if not data:
-            return None
-        return CompanyResponse(**data)
-
-    def get_by_id(self, db: SupabaseCRUD, company_id: int) -> CompanyResponse:
-        company = self.get(db, company_id)
-        if not company:
             raise ValueError(f"Company with ID {company_id} not found.")
-        return company
+        return CompanyResponse(**data)
 
     def get_all(self, db: SupabaseCRUD) -> list[CompanyResponse]:
         rows = db.get_all_rows(self.table_name)

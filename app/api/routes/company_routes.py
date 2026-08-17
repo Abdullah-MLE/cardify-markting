@@ -25,6 +25,12 @@ def extract_company_info(req: ScrapeRequest):
 
 
 # CRUD
+@router.get("", response_model=list[CompanyResponse])
+def list_companies():
+    """Lists all companies."""
+    return company_crud.get_all(supabase_crud)
+
+
 @router.get("/{company_id}", response_model=CompanyResponse)
 def get_company(company_id: int):
     """Gets a company by ID."""
