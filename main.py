@@ -11,9 +11,9 @@ from app.api.routes.audio_routes import router as audio_router
 
 # Initialize FastAPI App
 app = FastAPI(
-    title="AgenticAI API",
+    title="Cardify-Marketing API",
     version="1.0.0",
-    description="API for content generation and management"
+    description="API for Cardify-Marketing AI"
 )
 
 # CORS Middleware (Allow all for development)

@@ -1,5 +1,5 @@
 """Prompts for Template analysis, generation, and editing."""
-from app.schemas.db_models import Company
+from app.schemas.company import CompanyBase
 from app.schemas.ai_models import TempletAnalysis
 
 
@@ -28,7 +28,7 @@ def template_analysis_system_prompt() -> str:
     return "\n".join(prompt)
 
 
-def template_analysis_user_prompt(company: Company) -> str:
+def template_analysis_user_prompt(company: CompanyBase) -> str:
     prompt = [
         "## Company Profile",
         f"- Name: {company.company_name}",
@@ -71,7 +71,7 @@ def template_creation_from_prompt_system_prompt() -> str:
     return "\n".join(prompt)
 
 
-def template_creation_from_prompt_user_prompt(company: Company, user_request: str) -> str:
+def template_creation_from_prompt_user_prompt(company: CompanyBase, user_request: str) -> str:
     prompt = [
         "## User Request",
         f"{user_request}",
@@ -128,7 +128,7 @@ def template_constraint_system_prompt() -> str:
     return "\n".join(prompt)
 
 
-def template_constraint_user_prompt(company: Company) -> str:
+def template_constraint_user_prompt(company: CompanyBase) -> str:
     prompt = [
         f"Company: {company.company_name}",
         "I have provided the Original Post and the New Blank Template.",

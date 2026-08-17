@@ -1,9 +1,8 @@
 """Template Routes - Actions & CRUD"""
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from app.api.deps import template_service, supabase_crud, base_service
-from app.schemas.db_models import Template
-from app.schemas.ai_models import TempletAnalysis
+from app.api.deps import template_service, base_service
+from app.schemas.template import TemplateCreate, TemplateUpdate, TemplateResponse
 
 router = APIRouter(prefix="/templates", tags=["Templates"])
 
@@ -55,7 +54,7 @@ def edit_template(req: EditRequest):
 
 
 # CRUD
-@router.get("/{template_id}")
+@router.get("/{template_id}", response_model=TemplateResponse)
 def get_template(template_id: int):
     """Gets a template by ID."""
     try:
@@ -65,13 +64,13 @@ def get_template(template_id: int):
 
 
 @router.post("")
-def insert_template(template: Template):
+def insert_template(template: TemplateCreate):
     """Creates a new template record."""
     id = base_service.insert_template(template)
     return {"id": id}
 
 
 @router.put("/{template_id}")
-def update_template(template_id: int, template: Template):
+def update_template(template_id: int, template: TemplateUpdate):
     """Updates an existing template."""
     return base_service.update_template(template_id, template)

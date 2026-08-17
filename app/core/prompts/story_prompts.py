@@ -1,5 +1,5 @@
 """Simple prompts for Story image generation."""
-from app.schemas.db_models import Content
+from app.schemas.content import ContentBase
 
 
 def story_image_system_prompt() -> str:
@@ -10,7 +10,7 @@ def story_image_system_prompt() -> str:
     return "\n".join(prompt)
 
 
-def story_image_user_prompt(content: Content, user_instructions: str = None) -> str:
+def story_image_user_prompt(content: ContentBase, user_instructions: str = None) -> str:
     headline = content.h1[0] if content.h1 else ""
     post_idea = content.post_idea[0] if content.post_idea else ""
     prompt = [

@@ -1,5 +1,5 @@
 """Prompts for Single Post generation (text + image in one call)."""
-from app.schemas.db_models import Company
+from app.schemas.company import CompanyBase
 
 
 def single_post_system_prompt() -> str:
@@ -34,7 +34,7 @@ def single_post_system_prompt() -> str:
     return "\n".join(prompt)
 
 
-def single_post_user_prompt(h1: str, notes: str, company: Company) -> str:
+def single_post_user_prompt(h1: str, notes: str, company: CompanyBase) -> str:
     prompt = [
         "## HEADLINE",
         f"{h1}",

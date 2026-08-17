@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
 from app.services.base_service import BaseService
-from app.schemas.db_models import Content
+from app.schemas.content import ContentBase, ContentCreate, ContentResponse
 from app.schemas.ai_models import DayContentGeneration, ContentItem, SinglePostGeneration
 from app.core.prompts import day_content_system_prompt, day_content_user_prompt
 from app.core.prompts import single_post_system_prompt, single_post_user_prompt
@@ -13,7 +14,6 @@ from app.core.prompts.carousel_slide_prompts import (
     carousel_continuation_system_prompt,
     carousel_continuation_user_prompt
 )
-import time
 
 
 class ContentService(BaseService):
@@ -50,7 +50,7 @@ class ContentService(BaseService):
         
         return results
 
-    def create_single_post(self, company_id: int, template_id: int, h1: str, notes: str = "") -> Content:
+    def create_single_post(self, company_id: int, template_id: int, h1: str, notes: str = "") -> ContentResponse:
         """Creates a complete post (text + images) from a headline and notes."""
         company = self.get_company(company_id)
 
@@ -59,7 +59,7 @@ class ContentService(BaseService):
         ai_result = self.generate_text(user_prompt, single_post_system_prompt(), SinglePostGeneration)
 
         # Step 2: Build Content and insert to DB
-        content = Content(
+        content = ContentCreate(
             company_id=company_id,
             content_type=ai_result.content_type,
             h1=ai_result.headlines,
@@ -117,7 +117,7 @@ class ContentService(BaseService):
         return self.generate_text(user_prompt, day_content_system_prompt(), DayContentGeneration)
 
     # DATABASE CRUD
-    def insert_content(self, content: Content) -> int:
+    def insert_content(self, content: ContentCreate | ContentBase | ContentResponse) -> int:
         """Inserts a Content row into the database."""
         data = content.model_dump(exclude_none=True, exclude={"id", "created_at"})
         res = self.supabase_crud.insert_row("content", data)
@@ -229,19 +229,21 @@ class ContentService(BaseService):
         
         return urls
 
-    def _generate_cover_slide(self, content: Content, template_url: str, user_instructions: str = None) -> str:
+    def _generate_cover_slide(self, content: ContentBase | ContentResponse, template_url: str, user_instructions: str = None) -> str:
         """Generate first slide using template."""
         system_prompt = carousel_cover_system_prompt()
         user_prompt = carousel_cover_user_prompt(content, user_instructions)
         image_bytes = self.generate_image(user_prompt, system_prompt, media=[template_url])
-        return self.upload_image(image_bytes, f"carousel-{content.id}-cover-{int(time.time())}.png")
+        content_id = getattr(content, "id", None) or "new"
+        return self.upload_image(image_bytes, f"carousel-{content_id}-cover-{int(time.time())}.png")
 
-    def _generate_continuation_slide(self, content: Content, slide_index: int, first_slide_url: str) -> str:
+    def _generate_continuation_slide(self, content: ContentBase | ContentResponse, slide_index: int, first_slide_url: str) -> str:
         """Generate continuation slide matching first slide style."""
         system_prompt = carousel_continuation_system_prompt()
         user_prompt = carousel_continuation_user_prompt(content, slide_index)
         image_bytes = self.generate_image(user_prompt, system_prompt, media=[first_slide_url])
-        return self.upload_image(image_bytes, f"carousel-{content.id}-slide-{slide_index}-{int(time.time())}.png")
+        content_id = getattr(content, "id", None) or "new"
+        return self.upload_image(image_bytes, f"carousel-{content_id}-slide-{slide_index}-{int(time.time())}.png")
 
     def generate_single_slide_image(self, content_id: int, slide_index: int, template_id: int) -> str:
         """Generates a single slide image."""

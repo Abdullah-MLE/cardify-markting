@@ -1,7 +1,6 @@
 import requests
 from app.services.base_service import BaseService
-from app.schemas.db_models import Company
-
+from app.schemas.company import CompanyBase, CompanyCreate
 from app.core.prompts import extract_company_system_prompt, extract_company_user_prompt
 
 
@@ -24,10 +23,10 @@ class ScraperService(BaseService):
             
         return markdown
 
-    def extract_company_info(self, input_text: str) -> Company:
+    def extract_company_info(self, input_text: str) -> CompanyCreate:
         result = self.generate_text(
             prompt=extract_company_user_prompt(input_text),
             system_instruction=extract_company_system_prompt(),
-            response_schema=Company
+            response_schema=CompanyCreate
         )
         return result

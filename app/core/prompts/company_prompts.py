@@ -1,5 +1,5 @@
 """Prompts for Company extraction and editing."""
-from app.schemas.db_models import Company
+from app.schemas.company import CompanyBase
 
 
 def extract_company_system_prompt() -> str:
@@ -54,7 +54,7 @@ def edit_company_system_prompt() -> str:
     return "\n".join(prompt)
 
 
-def edit_company_user_prompt(company: Company, notes: str) -> str:
+def edit_company_user_prompt(company: CompanyBase, notes: str) -> str:
     prompt = [
         f"Current Details: {company.model_dump_json()}",
         f"User Notes: {notes}",

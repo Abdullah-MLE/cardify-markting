@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.api.deps import content_service, base_service
-from app.schemas.db_models import Content
+from app.schemas.content import ContentCreate, ContentUpdate, ContentResponse
 
 router = APIRouter(prefix="/content", tags=["Content"])
 
@@ -102,7 +102,7 @@ def create_single_post(req: CreateSinglePostRequest):
 
 
 # CRUD
-@router.get("/{content_id}")
+@router.get("/{content_id}", response_model=ContentResponse)
 def get_content(content_id: int):
     """Gets content by ID."""
     try:
@@ -112,13 +112,13 @@ def get_content(content_id: int):
 
 
 @router.post("")
-def insert_content(content: Content):
+def insert_content(content: ContentCreate):
     """Creates a new content record."""
     id = base_service.insert_content(content)
     return {"id": id}
 
 
 @router.put("/{content_id}")
-def update_content(content_id: int, content: Content):
+def update_content(content_id: int, content: ContentUpdate):
     """Updates content record."""
     return base_service.update_content(content_id, content)

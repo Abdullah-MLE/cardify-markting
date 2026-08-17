@@ -1,5 +1,5 @@
 """Prompts for Carousel first slide (cover) and continuation slides."""
-from app.schemas.db_models import Content
+from app.schemas.content import ContentBase
 
 
 def carousel_cover_system_prompt() -> str:
@@ -11,7 +11,7 @@ def carousel_cover_system_prompt() -> str:
     return "\n".join(prompt)
 
 
-def carousel_cover_user_prompt(content: Content, user_instructions: str = None) -> str:
+def carousel_cover_user_prompt(content: ContentBase, user_instructions: str = None) -> str:
     headline = content.h1[0] if content.h1 else ""
     post_idea = content.post_idea[0] if content.post_idea else ""
     prompt = [
@@ -35,7 +35,7 @@ def carousel_continuation_system_prompt() -> str:
     return "\n".join(prompt)
 
 
-def carousel_continuation_user_prompt(content: Content, slide_index: int) -> str:
+def carousel_continuation_user_prompt(content: ContentBase, slide_index: int) -> str:
     headline = content.h1[slide_index] if content.h1 and slide_index < len(content.h1) else ""
     post_idea = content.post_idea[slide_index] if content.post_idea and slide_index < len(content.post_idea) else ""
     prompt = [

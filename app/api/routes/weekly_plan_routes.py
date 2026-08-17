@@ -1,8 +1,8 @@
 """Weekly Plan Routes - Actions & CRUD"""
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from app.api.deps import weekly_plan_service, supabase_crud, base_service
-from app.schemas.db_models import WeeklyPlan
+from app.api.deps import weekly_plan_service, base_service
+from app.schemas.weekly_plan import WeeklyPlanCreate, WeeklyPlanUpdate, WeeklyPlanResponse
 
 router = APIRouter(prefix="/weekly-plans", tags=["Weekly Plans"])
 
@@ -49,7 +49,7 @@ def edit_weekly_plan(req: EditRequest):
 
 
 # CRUD
-@router.get("/{plan_id}")
+@router.get("/{plan_id}", response_model=WeeklyPlanResponse)
 def get_weekly_plan(plan_id: int):
     """Gets a weekly plan by ID."""
     try:
@@ -59,13 +59,13 @@ def get_weekly_plan(plan_id: int):
 
 
 @router.post("")
-def insert_weekly_plan(plan: WeeklyPlan):
+def insert_weekly_plan(plan: WeeklyPlanCreate):
     """Creates a new weekly plan record."""
     id = base_service.insert_weekly_plan(plan)
     return {"id": id}
 
 
 @router.put("/{plan_id}")
-def update_weekly_plan(plan_id: int, plan: WeeklyPlan):
+def update_weekly_plan(plan_id: int, plan: WeeklyPlanUpdate):
     """Updates a weekly plan."""
     return base_service.update_weekly_plan(plan_id, plan)

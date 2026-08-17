@@ -1,17 +1,17 @@
+from datetime import date, timedelta
 from app.services.base_service import BaseService
-from app.schemas.db_models import WeeklyPlan
+from app.schemas.weekly_plan import WeeklyPlanBase, WeeklyPlanCreate, WeeklyPlanResponse
 from app.core.prompts import (
     create_weekly_plan_system_prompt, 
     create_weekly_plan_user_prompt,
     edit_weekly_plan_system_prompt,
     edit_weekly_plan_user_prompt
 )
-from datetime import date, timedelta
 
 
 class WeeklyPlanService(BaseService):
 
-    def create_weekly_plan(self, company_id: int, title: str = None, start_date: str = None, end_date: str = None, user_notes: str = "just make a weekly plan") -> WeeklyPlan:
+    def create_weekly_plan(self, company_id: int, title: str = None, start_date: str = None, end_date: str = None, user_notes: str = "just make a weekly plan") -> WeeklyPlanBase:
         """Generates a weekly marketing plan content using LLM."""       
         today = date.today()
         start = start_date or today.isoformat()
@@ -20,8 +20,8 @@ class WeeklyPlanService(BaseService):
 
         company = self.get_company(company_id)
         
-        # Create temporary WeeklyPlan object for the prompt
-        weekly_plan = WeeklyPlan(
+        # Create temporary WeeklyPlanBase object for the prompt
+        weekly_plan = WeeklyPlanBase(
             company_id=company_id,
             plan_title=plan_title,
             start_date=start,
@@ -50,7 +50,7 @@ class WeeklyPlanService(BaseService):
             raise Exception("Weekly plan edit failed")
         return result
 
-    def insert_weekly_plan(self, weekly_plan: WeeklyPlan):
+    def insert_weekly_plan(self, weekly_plan: WeeklyPlanCreate | WeeklyPlanBase | WeeklyPlanResponse):
         """Inserts a weekly plan into the database."""
         if weekly_plan.ai_plan and (weekly_plan.status == "draft" or not weekly_plan.status):
             weekly_plan.status = "planned"

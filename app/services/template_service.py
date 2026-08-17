@@ -1,5 +1,5 @@
 from app.services.base_service import BaseService
-from app.schemas.db_models import Template
+from app.schemas.template import TemplateBase, TemplateCreate, TemplateResponse
 from app.schemas.ai_models import TempletAnalysis
 from app.core.prompts import (
     template_analysis_system_prompt,
@@ -73,13 +73,13 @@ class TemplateService(BaseService):
         image_bytes = self.generate_image(notes, system_prompt, media=[template.template_url], aspect_ratio=template.aspect_ratio or "3:4")
         return self.upload_image(image_bytes, f"template-{template_id}-edited.png")
 
-    def insert_template(self, template: Template) -> Template:
+    def insert_template(self, template: TemplateCreate | TemplateBase | TemplateResponse) -> TemplateResponse | None:
         """Inserts a new template record into the database."""
         data = template.model_dump(exclude_none=True, exclude={"id", "created_at"})
         result = self.supabase_crud.insert_row("templates", data)
-        return Template(**dict(result)) if result else None
+        return TemplateResponse(**dict(result)) if result else None
 
-    def update_template_url(self, template_id: int, new_url: str) -> Template:
+    def update_template_url(self, template_id: int, new_url: str) -> TemplateResponse | None:
         """Updates the image URL of an existing template."""
         result = self.supabase_crud.update_row("templates", {"template_url": new_url}, template_id)
-        return Template(**dict(result)) if result else None
+        return TemplateResponse(**dict(result)) if result else None

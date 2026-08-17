@@ -1,5 +1,6 @@
 """Prompts for Weekly Plan creation and editing."""
-from app.schemas.db_models import Company, WeeklyPlan
+from app.schemas.company import CompanyBase
+from app.schemas.weekly_plan import WeeklyPlanBase
 
 
 def create_weekly_plan_system_prompt() -> str:
@@ -27,7 +28,7 @@ def create_weekly_plan_system_prompt() -> str:
     return "\n".join(prompt)
 
 
-def create_weekly_plan_user_prompt(company: Company, weekly_plan: WeeklyPlan, notes: str) -> str:
+def create_weekly_plan_user_prompt(company: CompanyBase, weekly_plan: WeeklyPlanBase, notes: str) -> str:
     prompt = [
         "## Company Details",
         f"- Name: {company.company_name}",
