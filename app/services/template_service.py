@@ -1,5 +1,5 @@
 from app.services.base_service import BaseService
-from app.schemas.template import TemplateBase, TemplateCreate, TemplateResponse
+from app.crud import company_crud, template_crud
 from app.schemas.ai_models import TempletAnalysis
 from app.core.prompts import (
     template_analysis_system_prompt,
@@ -18,7 +18,7 @@ class TemplateService(BaseService):
 
     def analyze_template(self, post_url: str, company_id: int) -> TempletAnalysis:
         """Analyzes a post image to extract template structure and brand info."""
-        company = self.get_company(company_id)
+        company = company_crud.get_by_id(self.supabase_crud, company_id)
         logo_url = company.logo_url or ""
         
         system_prompt = template_analysis_system_prompt()
@@ -29,7 +29,7 @@ class TemplateService(BaseService):
 
     def create_template_from_image(self, analysis: TempletAnalysis, company_id: int, post_url: str, user_instructions: str = None) -> str:
         """Generates a reusable template image based on the analysis of an existing post."""
-        company = self.get_company(company_id)
+        company = company_crud.get_by_id(self.supabase_crud, company_id)
 
         system_prompt = template_generation_system_prompt()
         user_prompt = template_generation_user_prompt(analysis)
@@ -44,7 +44,7 @@ class TemplateService(BaseService):
 
     def create_template_from_prompt(self, company_id: int, prompt: str) -> str:
         """Generates a template based on user prompt and company info."""
-        company = self.get_company(company_id)
+        company = company_crud.get_by_id(self.supabase_crud, company_id)
         
         system_prompt = template_creation_from_prompt_system_prompt()
         user_prompt = template_creation_from_prompt_user_prompt(company, prompt)
@@ -56,7 +56,7 @@ class TemplateService(BaseService):
 
     def generate_template_constraints(self, company_id: int, post_url: str, template_url: str) -> str:
         """Generates strict usage constraints by comparing the original post and the new template."""
-        company = self.get_company(company_id)
+        company = company_crud.get_by_id(self.supabase_crud, company_id)
         
         system_prompt = template_constraint_system_prompt()
         user_prompt = template_constraint_user_prompt(company)
@@ -66,20 +66,9 @@ class TemplateService(BaseService):
 
     def edit_template(self, template_id: int, notes: str) -> str:
         """Edits an existing template based on user instructions."""
-        template = self.get_template(template_id)
+        template = template_crud.get_by_id(self.supabase_crud, template_id)
         
         system_prompt = template_edit_system_prompt()
         
         image_bytes = self.generate_image(notes, system_prompt, media=[template.template_url], aspect_ratio=template.aspect_ratio or "3:4")
         return self.upload_image(image_bytes, f"template-{template_id}-edited.png")
-
-    def insert_template(self, template: TemplateCreate | TemplateBase | TemplateResponse) -> TemplateResponse | None:
-        """Inserts a new template record into the database."""
-        data = template.model_dump(exclude_none=True, exclude={"id", "created_at"})
-        result = self.supabase_crud.insert_row("templates", data)
-        return TemplateResponse(**dict(result)) if result else None
-
-    def update_template_url(self, template_id: int, new_url: str) -> TemplateResponse | None:
-        """Updates the image URL of an existing template."""
-        result = self.supabase_crud.update_row("templates", {"template_url": new_url}, template_id)
-        return TemplateResponse(**dict(result)) if result else None

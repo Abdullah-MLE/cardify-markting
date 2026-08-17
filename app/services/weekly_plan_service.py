@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from app.services.base_service import BaseService
-from app.schemas.weekly_plan import WeeklyPlanBase, WeeklyPlanCreate, WeeklyPlanResponse
+from app.crud import company_crud, weekly_plan_crud
+from app.schemas.weekly_plan import WeeklyPlanBase
 from app.core.prompts import (
     create_weekly_plan_system_prompt, 
     create_weekly_plan_user_prompt,
@@ -18,7 +19,7 @@ class WeeklyPlanService(BaseService):
         end = end_date or (date.fromisoformat(start) + timedelta(days=7)).isoformat()
         plan_title = title or f"Weekly Plan {start}"
 
-        company = self.get_company(company_id)
+        company = company_crud.get_by_id(self.supabase_crud, company_id)
         
         # Create temporary WeeklyPlanBase object for the prompt
         weekly_plan = WeeklyPlanBase(
@@ -40,7 +41,7 @@ class WeeklyPlanService(BaseService):
 
     def edit_weekly_plan(self, weekly_plan_id: int, notes: str) -> str:
         """Edits the text content of an existing weekly plan."""
-        weekly_plan = self.get_weekly_plan(weekly_plan_id)
+        weekly_plan = weekly_plan_crud.get_by_id(self.supabase_crud, weekly_plan_id)
         
         system_prompt = edit_weekly_plan_system_prompt()
         user_prompt = edit_weekly_plan_user_prompt(weekly_plan.ai_plan or "", notes)
@@ -49,16 +50,3 @@ class WeeklyPlanService(BaseService):
         if not result:
             raise Exception("Weekly plan edit failed")
         return result
-
-    def insert_weekly_plan(self, weekly_plan: WeeklyPlanCreate | WeeklyPlanBase | WeeklyPlanResponse):
-        """Inserts a weekly plan into the database."""
-        if weekly_plan.ai_plan and (weekly_plan.status == "draft" or not weekly_plan.status):
-            weekly_plan.status = "planned"
-        valid_columns = {'company_id', 'start_date', 'end_date', 'plan_title', 'ai_plan', 'status'}
-        data = weekly_plan.model_dump(exclude_none=True)
-        filtered_data = {k: v for k, v in data.items() if k in valid_columns}
-        return self.supabase_crud.insert_row("campaigns", filtered_data)
-
-    def update_weekly_plan(self, weekly_plan_id: int, content: str):
-        """Updates the plan content column of a weekly plan."""
-        return self.supabase_crud.update_row("campaigns", {"ai_plan": content, "status": "planned"}, weekly_plan_id)

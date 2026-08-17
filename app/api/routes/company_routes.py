@@ -1,7 +1,7 @@
 """Company Routes - Scraping & CRUD"""
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from app.api.deps import scraper_service, base_service
+from app.api.deps import scraper_service, supabase_crud, company_crud
 from app.schemas.company import CompanyCreate, CompanyUpdate, CompanyResponse
 
 router = APIRouter(prefix="/companies", tags=["Companies"])
@@ -29,7 +29,7 @@ def extract_company_info(req: ScrapeRequest):
 def get_company(company_id: int):
     """Gets a company by ID."""
     try:
-        return base_service.get_company(company_id)
+        return company_crud.get_by_id(supabase_crud, company_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -37,11 +37,14 @@ def get_company(company_id: int):
 @router.post("")
 def create_company(company: CompanyCreate):
     """Creates a new company."""
-    id = base_service.insert_company(company)
+    id = company_crud.create(supabase_crud, company)
     return {"id": id}
 
 
-@router.put("/{company_id}")
+@router.put("/{company_id}", response_model=CompanyResponse)
 def update_company(company_id: int, company: CompanyUpdate):
     """Updates an existing company."""
-    return base_service.update_company(company_id, company)
+    try:
+        return company_crud.update(supabase_crud, company_id, company)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

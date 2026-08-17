@@ -1,93 +1,14 @@
 from libs.GeminiWrapper.GeminiWrapper import GeminiWrapper
 from libs.GeminiWrapper.models import InputParams, TextParams, ImageParams
 from libs.SupabaseCRUD.SupabaseCRUD import SupabaseCRUD
-from app.schemas.company import CompanyBase, CompanyCreate, CompanyUpdate, CompanyResponse
-from app.schemas.template import TemplateBase, TemplateCreate, TemplateUpdate, TemplateResponse
-from app.schemas.weekly_plan import WeeklyPlanBase, WeeklyPlanCreate, WeeklyPlanUpdate, WeeklyPlanResponse
-from app.schemas.content import ContentBase, ContentCreate, ContentUpdate, ContentResponse
 
 
 class BaseService:
-    """Base class with shared helpers for all services."""
+    """Base class for AI operations (Gemini and Storage)."""
     
     def __init__(self, gemini_wrapper: GeminiWrapper, supabase_crud: SupabaseCRUD):
         self.gemini_wrapper = gemini_wrapper
         self.supabase_crud = supabase_crud
-
-    # ENTITY GETTERS
-    def get_company(self, company_id: int) -> CompanyResponse:
-        data = self.supabase_crud.get_row_by_id("companies", company_id)
-        if not data:
-            raise ValueError(f"Company {company_id} not found.")
-        return CompanyResponse(**data)
-
-    def get_weekly_plan(self, weekly_plan_id: int) -> WeeklyPlanResponse:
-        data = self.supabase_crud.get_row_by_id("campaigns", weekly_plan_id)
-        if not data:
-            raise ValueError(f"Plan {weekly_plan_id} not found.")
-        return WeeklyPlanResponse(**data)
-
-    def get_template(self, template_id: int) -> TemplateResponse:
-        data = self.supabase_crud.get_row_by_id("templates", template_id)
-        if not data:
-            raise ValueError(f"Template {template_id} not found.")
-        return TemplateResponse(**data)
-
-    def get_content(self, content_id: int) -> ContentResponse:
-        data = self.supabase_crud.get_row_by_id("content", content_id)
-        if not data:
-            raise ValueError(f"Content {content_id} not found.")
-        return ContentResponse(**data)
-
-    # ENTITY INSERTERS
-    def insert_company(self, company: CompanyCreate | CompanyBase | CompanyResponse) -> int:
-        data = company.model_dump(exclude_none=True, exclude={"id", "created_at"})
-        res = self.supabase_crud.insert_row("companies", data)
-        return res.get("id")
-
-    def insert_template(self, template: TemplateCreate | TemplateBase | TemplateResponse) -> int:
-        data = template.model_dump(exclude_none=True, exclude={"id", "created_at"})
-        res = self.supabase_crud.insert_row("templates", data)
-        return res.get("id")
-
-    def insert_weekly_plan(self, plan: WeeklyPlanCreate | WeeklyPlanBase | WeeklyPlanResponse) -> int:
-        if plan.ai_plan and (plan.status == "draft" or not plan.status):
-            plan.status = "planned"
-        data = plan.model_dump(exclude_none=True, exclude={"id", "created_at"})
-        res = self.supabase_crud.insert_row("campaigns", data)
-        return res.get("id")
-
-    def insert_content(self, content: ContentCreate | ContentBase | ContentResponse) -> int:
-        if not content.post_images or all(url == "" for url in content.post_images):
-            content.status = "pending_images"
-        else:
-            content.status = "completed"
-        data = content.model_dump(exclude_none=True, exclude={"id", "created_at"})
-        res = self.supabase_crud.insert_row("content", data)
-        return res.get("id")
-
-    # ENTITY UPDATERS
-    def update_company(self, company_id: int, company: CompanyUpdate | CompanyBase | CompanyResponse):
-        data = company.model_dump(exclude_none=True, exclude={"id", "created_at"})
-        return self.supabase_crud.update_row("companies", data, company_id)
-
-    def update_template(self, template_id: int, template: TemplateUpdate | TemplateBase | TemplateResponse):
-        data = template.model_dump(exclude_none=True, exclude={"id", "created_at"})
-        return self.supabase_crud.update_row("templates", data, template_id)
-
-    def update_weekly_plan(self, plan_id: int, plan: WeeklyPlanUpdate | WeeklyPlanBase | WeeklyPlanResponse):
-        if plan.ai_plan and (plan.status == "draft" or not plan.status):
-            plan.status = "planned"
-        data = plan.model_dump(exclude_none=True, exclude={"id", "created_at"})
-        return self.supabase_crud.update_row("campaigns", data, plan_id)
-
-    def update_content(self, content_id: int, content: ContentUpdate | ContentBase | ContentResponse):
-        if not content.post_images or all(url == "" for url in content.post_images):
-            content.status = "pending_images"
-        else:
-            content.status = "completed"
-        data = content.model_dump(exclude_none=True, exclude={"id", "created_at"})
-        return self.supabase_crud.update_row("content", data, content_id)
 
     # TEXT GENERATION
     def generate_text(self, prompt: str, system_instruction: str, response_schema=None, media: list = None):
@@ -113,5 +34,6 @@ class BaseService:
             raise Exception(f"Image generation failed: {result.get('error')}")
         return result.get("content")
 
+    # STORAGE HELPER
     def upload_image(self, image_bytes: bytes, filename: str) -> str:
         return self.supabase_crud.upload_image(image_bytes, filename)

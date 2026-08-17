@@ -1,7 +1,7 @@
 """Content Routes - Actions & CRUD"""
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from app.api.deps import content_service, base_service
+from app.api.deps import content_service, content_crud, weekly_plan_crud, supabase_crud
 from app.schemas.content import ContentCreate, ContentUpdate, ContentResponse
 
 router = APIRouter(prefix="/content", tags=["Content"])
@@ -42,7 +42,7 @@ def create_week_content(req: CreateWeekContentRequest):
     try:
         results = content_service.generate_week_content(req.weekly_plan_id)
         if req.weekly_plan_id:
-            content_service.supabase_crud.update_row("campaigns", {"status": "content_ready"}, req.weekly_plan_id)
+            weekly_plan_crud.update_status(supabase_crud, req.weekly_plan_id, "content_ready")
         return {"days": [d.model_dump() for d in results]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -55,7 +55,7 @@ def create_day_content(req: CreateDayContentRequest):
             req.weekly_plan_id, req.day_order, req.day_name, req.date, req.notes
         )
         if req.weekly_plan_id:
-            content_service.supabase_crud.update_row("campaigns", {"status": "content_ready"}, req.weekly_plan_id)
+            weekly_plan_crud.update_status(supabase_crud, req.weekly_plan_id, "content_ready")
         return day_content.model_dump()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -106,7 +106,7 @@ def create_single_post(req: CreateSinglePostRequest):
 def get_content(content_id: int):
     """Gets content by ID."""
     try:
-        return base_service.get_content(content_id)
+        return content_crud.get_by_id(supabase_crud, content_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -114,11 +114,14 @@ def get_content(content_id: int):
 @router.post("")
 def insert_content(content: ContentCreate):
     """Creates a new content record."""
-    id = base_service.insert_content(content)
+    id = content_crud.create(supabase_crud, content)
     return {"id": id}
 
 
-@router.put("/{content_id}")
+@router.put("/{content_id}", response_model=ContentResponse)
 def update_content(content_id: int, content: ContentUpdate):
     """Updates content record."""
-    return base_service.update_content(content_id, content)
+    try:
+        return content_crud.update(supabase_crud, content_id, content)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
