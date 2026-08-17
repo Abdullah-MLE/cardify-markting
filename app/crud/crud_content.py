@@ -8,29 +8,21 @@ class CRUDContent:
     def __init__(self):
         self.table_name = "content"
 
-    def get(self, db: SupabaseCRUD, content_id: int) -> ContentResponse | None:
+    def get_by_id(self, db: SupabaseCRUD, content_id: int) -> ContentResponse:
         data = db.get_row_by_id(self.table_name, content_id)
         if not data:
-            return None
+            raise ValueError(f"Content with ID {content_id} not found.")
         return ContentResponse(**data)
 
-    def get_by_id(self, db: SupabaseCRUD, content_id: int) -> ContentResponse:
-        content = self.get(db, content_id)
-        if not content:
-            raise ValueError(f"Content with ID {content_id} not found.")
-        return content
-
-    def get_by_campaign(self, db: SupabaseCRUD, campaign_id: int) -> list[ContentResponse]:
-        response = db.supabase_client.table(self.table_name).select('*').eq('campaign_id', campaign_id).execute()
+    def get_all(self, db: SupabaseCRUD, company_id: int = None, campaign_id: int = None) -> list[ContentResponse]:
+        """Get all content, optionally filtered by company_id and/or campaign_id."""
+        query = db.supabase_client.table(self.table_name).select('*')
+        if company_id:
+            query = query.eq('company_id', company_id)
+        if campaign_id:
+            query = query.eq('campaign_id', campaign_id)
+        response = query.execute()
         return [ContentResponse(**row) for row in response.data] if response.data else []
-
-    def get_by_company(self, db: SupabaseCRUD, company_id: int) -> list[ContentResponse]:
-        response = db.supabase_client.table(self.table_name).select('*').eq('company_id', company_id).execute()
-        return [ContentResponse(**row) for row in response.data] if response.data else []
-
-    def get_all(self, db: SupabaseCRUD) -> list[ContentResponse]:
-        rows = db.get_all_rows(self.table_name)
-        return [ContentResponse(**row) for row in rows] if rows else []
 
     def create(self, db: SupabaseCRUD, obj_in: ContentCreate) -> int:
         if not obj_in.post_images or all(url == "" for url in obj_in.post_images):
@@ -43,6 +35,7 @@ class CRUDContent:
 
     def update(self, db: SupabaseCRUD, content_id: int, obj_in: ContentUpdate) -> ContentResponse:
         data = obj_in.model_dump(exclude_none=True)
+        # Auto-manage status when post_images changes
         if "post_images" in data and data["post_images"] is not None:
             if not data["post_images"] or all(url == "" for url in data["post_images"]):
                 data["status"] = "pending_images"
@@ -52,24 +45,6 @@ class CRUDContent:
         if not res:
             raise ValueError(f"Failed to update content {content_id}")
         return ContentResponse(**res)
-
-    def update_images(self, db: SupabaseCRUD, content_id: int, image_urls: list[str]) -> ContentResponse:
-        status = "completed" if any(url != "" for url in image_urls) else "pending_images"
-        res = db.update_row(self.table_name, {
-            "post_images": image_urls,
-            "status": status
-        }, content_id)
-        if not res:
-            raise ValueError(f"Failed to update images for content {content_id}")
-        return ContentResponse(**res)
-
-    def update_single_image(self, db: SupabaseCRUD, content_id: int, image_url: str, image_index: int = 0) -> ContentResponse:
-        current = self.get_by_id(db, content_id)
-        post_images = list(current.post_images) if current.post_images and isinstance(current.post_images, list) else []
-        while len(post_images) <= image_index:
-            post_images.append("")
-        post_images[image_index] = image_url
-        return self.update_images(db, content_id, post_images)
 
     def delete(self, db: SupabaseCRUD, content_id: int) -> bool:
         return db.delete_row(self.table_name, content_id)

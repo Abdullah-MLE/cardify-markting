@@ -18,6 +18,7 @@ class EditRequest(BaseModel):
     notes: str
 
 
+# Actions
 @router.post("/create")
 def create_template(req: CreateTemplateRequest):
     """Creates a template from a post (Analysis -> Generation -> Constraints) OR a prompt."""
@@ -54,6 +55,12 @@ def edit_template(req: EditRequest):
 
 
 # CRUD
+@router.get("", response_model=list[TemplateResponse])
+def list_templates(company_id: int = None):
+    """Lists templates, optionally filtered by company_id."""
+    return template_crud.get_all(supabase_crud, company_id=company_id)
+
+
 @router.get("/{template_id}", response_model=TemplateResponse)
 def get_template(template_id: int):
     """Gets a template by ID."""

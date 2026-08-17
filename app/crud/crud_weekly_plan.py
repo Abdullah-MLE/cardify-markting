@@ -8,23 +8,17 @@ class CRUDWeeklyPlan:
     def __init__(self):
         self.table_name = "campaigns"
 
-    def get(self, db: SupabaseCRUD, plan_id: int) -> WeeklyPlanResponse | None:
+    def get_by_id(self, db: SupabaseCRUD, plan_id: int) -> WeeklyPlanResponse:
         data = db.get_row_by_id(self.table_name, plan_id)
         if not data:
-            return None
+            raise ValueError(f"Weekly plan with ID {plan_id} not found.")
         return WeeklyPlanResponse(**data)
 
-    def get_by_id(self, db: SupabaseCRUD, plan_id: int) -> WeeklyPlanResponse:
-        plan = self.get(db, plan_id)
-        if not plan:
-            raise ValueError(f"Weekly plan with ID {plan_id} not found.")
-        return plan
-
-    def get_by_company(self, db: SupabaseCRUD, company_id: int) -> list[WeeklyPlanResponse]:
-        response = db.supabase_client.table(self.table_name).select('*').eq('company_id', company_id).execute()
-        return [WeeklyPlanResponse(**row) for row in response.data] if response.data else []
-
-    def get_all(self, db: SupabaseCRUD) -> list[WeeklyPlanResponse]:
+    def get_all(self, db: SupabaseCRUD, company_id: int = None) -> list[WeeklyPlanResponse]:
+        """Get all campaigns, optionally filtered by company_id."""
+        if company_id:
+            response = db.supabase_client.table(self.table_name).select('*').eq('company_id', company_id).execute()
+            return [WeeklyPlanResponse(**row) for row in response.data] if response.data else []
         rows = db.get_all_rows(self.table_name)
         return [WeeklyPlanResponse(**row) for row in rows] if rows else []
 
@@ -42,18 +36,6 @@ class CRUDWeeklyPlan:
         res = db.update_row(self.table_name, data, plan_id)
         if not res:
             raise ValueError(f"Failed to update weekly plan {plan_id}")
-        return WeeklyPlanResponse(**res)
-
-    def update_status(self, db: SupabaseCRUD, plan_id: int, status: str) -> WeeklyPlanResponse:
-        res = db.update_row(self.table_name, {"status": status}, plan_id)
-        if not res:
-            raise ValueError(f"Failed to update status for weekly plan {plan_id}")
-        return WeeklyPlanResponse(**res)
-
-    def update_ai_plan(self, db: SupabaseCRUD, plan_id: int, ai_plan: str, status: str = "planned") -> WeeklyPlanResponse:
-        res = db.update_row(self.table_name, {"ai_plan": ai_plan, "status": status}, plan_id)
-        if not res:
-            raise ValueError(f"Failed to update plan content for weekly plan {plan_id}")
         return WeeklyPlanResponse(**res)
 
     def delete(self, db: SupabaseCRUD, plan_id: int) -> bool:

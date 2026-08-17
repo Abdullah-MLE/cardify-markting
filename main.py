@@ -4,9 +4,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.company_routes import router as company_router
 from app.api.routes.templates_routes import router as template_router
-from app.api.routes.weekly_plan_routes import router as weekly_plan_router
+from app.api.routes.weekly_plan_routes import router as campaigns_router
 from app.api.routes.content_routes import router as content_router
 from app.api.routes.audio_routes import router as audio_router
+from app.api.routes.upload_routes import router as upload_router
 
 
 # Initialize FastAPI App
@@ -28,9 +29,11 @@ app.add_middleware(
 # Register Routers
 app.include_router(company_router, prefix="/api/v1")
 app.include_router(template_router, prefix="/api/v1")
-app.include_router(weekly_plan_router, prefix="/api/v1")
+app.include_router(campaigns_router, prefix="/api/v1/campaigns")
+app.include_router(campaigns_router, prefix="/api/v1/weekly-plans")   # backward compat alias
 app.include_router(content_router, prefix="/api/v1")
 app.include_router(audio_router, prefix="/api/v1")
+app.include_router(upload_router, prefix="/api/v1")
 
 
 @app.get("/")

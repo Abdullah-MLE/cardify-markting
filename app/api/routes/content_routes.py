@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.api.deps import content_service, content_crud, weekly_plan_crud, supabase_crud
 from app.schemas.content import ContentCreate, ContentUpdate, ContentResponse
+from app.schemas.weekly_plan import WeeklyPlanUpdate
 
 router = APIRouter(prefix="/content", tags=["Content"])
 
@@ -41,8 +42,7 @@ def create_week_content(req: CreateWeekContentRequest):
     """Generates content for the full week."""
     try:
         results = content_service.generate_week_content(req.weekly_plan_id)
-        if req.weekly_plan_id:
-            weekly_plan_crud.update_status(supabase_crud, req.weekly_plan_id, "content_ready")
+        weekly_plan_crud.update(supabase_crud, req.weekly_plan_id, WeeklyPlanUpdate(status="content_ready"))
         return {"days": [d.model_dump() for d in results]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -54,8 +54,7 @@ def create_day_content(req: CreateDayContentRequest):
         day_content = content_service.generate_day_content(
             req.weekly_plan_id, req.day_order, req.day_name, req.date, req.notes
         )
-        if req.weekly_plan_id:
-            weekly_plan_crud.update_status(supabase_crud, req.weekly_plan_id, "content_ready")
+        weekly_plan_crud.update(supabase_crud, req.weekly_plan_id, WeeklyPlanUpdate(status="content_ready"))
         return day_content.model_dump()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -102,6 +101,12 @@ def create_single_post(req: CreateSinglePostRequest):
 
 
 # CRUD
+@router.get("", response_model=list[ContentResponse])
+def list_content(company_id: int = None, campaign_id: int = None):
+    """Lists content, optionally filtered by company_id and/or campaign_id."""
+    return content_crud.get_all(supabase_crud, company_id=company_id, campaign_id=campaign_id)
+
+
 @router.get("/{content_id}", response_model=ContentResponse)
 def get_content(content_id: int):
     """Gets content by ID."""

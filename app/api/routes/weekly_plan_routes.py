@@ -1,10 +1,10 @@
-"""Weekly Plan Routes - Actions & CRUD"""
+"""Campaigns (Weekly Plans) Routes - Actions & CRUD"""
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.api.deps import weekly_plan_service, weekly_plan_crud, supabase_crud
 from app.schemas.weekly_plan import WeeklyPlanCreate, WeeklyPlanUpdate, WeeklyPlanResponse
 
-router = APIRouter(prefix="/weekly-plans", tags=["Weekly Plans"])
+router = APIRouter(tags=["Campaigns"])
 
 
 # Request Models
@@ -21,7 +21,7 @@ class EditRequest(BaseModel):
     notes: str
 
 
-# Actions
+# Actions (AI)
 @router.post("/create")
 def create_weekly_plan(req: CreateRequest):
     """Generates a weekly plan using AI."""
@@ -40,7 +40,7 @@ def create_weekly_plan(req: CreateRequest):
 
 @router.post("/edit")
 def edit_weekly_plan(req: EditRequest):
-    """Edits the content of an existing weekly plan."""
+    """Edits the content of an existing weekly plan using AI."""
     try:
         content = weekly_plan_service.edit_weekly_plan(req.weekly_plan_id, req.notes)
         return {"ai_plan": content}
@@ -49,9 +49,15 @@ def edit_weekly_plan(req: EditRequest):
 
 
 # CRUD
+@router.get("", response_model=list[WeeklyPlanResponse])
+def list_campaigns(company_id: int = None):
+    """Lists campaigns, optionally filtered by company_id."""
+    return weekly_plan_crud.get_all(supabase_crud, company_id=company_id)
+
+
 @router.get("/{plan_id}", response_model=WeeklyPlanResponse)
-def get_weekly_plan(plan_id: int):
-    """Gets a weekly plan by ID."""
+def get_campaign(plan_id: int):
+    """Gets a campaign by ID."""
     try:
         return weekly_plan_crud.get_by_id(supabase_crud, plan_id)
     except ValueError as e:
@@ -59,15 +65,15 @@ def get_weekly_plan(plan_id: int):
 
 
 @router.post("")
-def insert_weekly_plan(plan: WeeklyPlanCreate):
-    """Creates a new weekly plan record."""
+def insert_campaign(plan: WeeklyPlanCreate):
+    """Creates a new campaign record."""
     id = weekly_plan_crud.create(supabase_crud, plan)
     return {"id": id}
 
 
 @router.put("/{plan_id}", response_model=WeeklyPlanResponse)
-def update_weekly_plan(plan_id: int, plan: WeeklyPlanUpdate):
-    """Updates a weekly plan."""
+def update_campaign(plan_id: int, plan: WeeklyPlanUpdate):
+    """Updates a campaign."""
     try:
         return weekly_plan_crud.update(supabase_crud, plan_id, plan)
     except ValueError as e:
